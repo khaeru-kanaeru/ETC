@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Toilet Card Enterprise</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; overflow: hidden; } /* Bento style: No main scroll */
+        
+        .modal-enter { opacity: 0; transform: translateY(10px) scale(0.95); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .modal-enter-active { opacity: 1; transform: translateY(0) scale(1); }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+        
+        /* Navigasi Tab */
+        .tab-btn.active { background-color: #eef2ff; color: #4f46e5; font-weight: 700; border-bottom: 2px solid #4f46e5; }
+        .tab-content { display: none; }
+        .tab-content.active { display: grid; }
+        
+        /* Autocomplete */
+        .autocomplete-list { max-height: 200px; overflow-y: auto; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
+    </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-800 h-screen w-screen selection:bg-indigo-100 selection:text-indigo-900 flex flex-col">
+
+    <!-- Header & Navigasi -->
+    <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 flex-none z-20">
+        <div class="max-w-[1600px] mx-auto px-6 py-3 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-2.5 rounded-xl shadow-sm">
+                    <i class="fa-solid fa-restroom text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-slate-900">Toilet<span class="text-indigo-600">Card</span></h1>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Enterprise Access</p>
+                </div>
+            </div>
+            
+            <div class="flex bg-slate-100 p-1 rounded-xl">
+                <button onclick="switchTab('live')" id="tab-live" class="tab-btn active px-5 py-2 rounded-lg text-sm font-medium text-slate-500 transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-bolt"></i> Live Dashboard
+                </button>
+                <button onclick="switchTab('master')" id="tab-master" class="tab-btn px-5 py-2 rounded-lg text-sm font-medium text-slate-500 transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-database"></i> Master Data
+                </button>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div class="hidden sm:flex bg-slate-100 border border-slate-200 px-4 py-2 rounded-xl text-sm font-bold text-slate-600 gap-2 items-center shadow-inner">
+                    <i class="fa-regular fa-clock text-indigo-500"></i>
+                    <span id="currentTime">00:00:00</span>
+                    <span id="currentShift" class="ml-2 text-[10px] bg-white px-2 py-0.5 rounded text-indigo-500 border border-indigo-100 uppercase">SHIFT</span>
+                </div>
+                <div id="firebaseStatus" class="w-3 h-3 rounded-full bg-slate-300 shadow-sm" title="Status Database"></div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-[1600px] mx-auto w-full p-4 lg:p-6 overflow-hidden relative">
+        
+        <!-- ================= TAB 1: LIVE DASHBOARD (BENTO) ================= -->
+        <div id="content-live" class="tab-content active grid-cols-1 lg:grid-cols-12 lg:grid-rows-[auto_1fr] gap-4 lg:gap-6 h-full">
+            
+            <!-- Bento Kiri: Status & Kunci Aktif -->
+            <section class="lg:col-span-4 flex flex-col gap-6">
+                <!-- Line PP -->
+                <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-1.5 h-5 bg-blue-500 rounded-full"></div>
+                        <h2 class="text-lg font-bold text-slate-800">Area Line PP</h2>
+                    </div>
+                    <div id="grid-PP" class="grid grid-cols-1 gap-3"></div>
+                </div>
+
+                <!-- Line HA -->
+                <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200 flex-grow">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-1.5 h-5 bg-purple-500 rounded-full"></div>
+                        <h2 class="text-lg font-bold text-slate-800">Area Line HA</h2>
+                    </div>
+                    <div id="grid-HA" class="grid grid-cols-1 gap-3"></div>
+                </div>
+            </section>
+
+            <!-- Bento Tengah-Kanan: Input & Riwayat (Full Height) -->
+            <section class="lg:col-span-8 flex flex-col gap-6 overflow-hidden">
+                
+                <!-- Quick Stats Kotak Atas -->
+                <div class="grid grid-cols-3 gap-4 shrink-0">
+                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 flex items-center justify-between relative overflow-hidden group">
+                        <div class="absolute -right-4 -top-4 w-16 h-16 bg-indigo-50 rounded-full -z-10 group-hover:scale-150 transition-transform"></div>
+                        <div>
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Transaksi Aktif</p>
+                            <p class="text-2xl font-extrabold text-slate-700"><span id="statOccupied" class="text-indigo-600">0</span> <span class="text-sm font-medium text-slate-400">/ 4</span></p>
+                        </div>
+                        <i class="fa-solid fa-key text-2xl text-indigo-200"></i>
+                    </div>
+                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 flex items-center justify-between col-span-2 relative overflow-hidden group">
+                        <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-emerald-50 rounded-full -z-10 group-hover:scale-150 transition-transform"></div>
+                        <div>
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Riwayat Selesai (Shift Ini)</p>
+                            <p class="text-2xl font-extrabold text-slate-700" id="statToday">0 <span class="text-sm font-medium text-slate-400">Transaksi</span></p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-slate-400 font-medium">Batas Reset Shift:</p>
+                            <p class="text-sm font-bold text-emerald-600" id="nextResetTime">07:00 / 20:00</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabel Riwayat Live -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col flex-grow overflow-hidden">
+                    <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
+                        <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-indigo-500"></i> Log Selesai Berjalan
+                        </h2>
+                    </div>
+                    
+                    <div class="flex-grow flex flex-col overflow-hidden bg-slate-50/30">
+                        <table class="w-full text-left border-collapse whitespace-nowrap shrink-0">
+                            <thead class="bg-slate-100/80 sticky top-0">
+                                <tr class="text-slate-500 text-[11px] uppercase tracking-wider font-extrabold border-b border-slate-200">
+                                    <th class="px-6 py-3">Data Manpower</th>
+                                    <th class="px-6 py-3">Asal Line</th>
+                                    <th class="px-6 py-3">Fasilitas</th>
+                                    <th class="px-6 py-3">Waktu</th>
+                                    <th class="px-6 py-3 text-right">Durasi</th>
+                                </tr>
+                            </thead>
+                        </table>
+                        <div class="flex-grow overflow-y-auto custom-scrollbar relative">
+                            <table class="w-full text-left border-collapse whitespace-nowrap">
+                                <tbody id="historyTableBody" class="text-sm divide-y divide-slate-100">
+                                    <!-- Log Live Shift Ini -->
+                                </tbody>
+                            </table>
+                            <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 hidden bg-white/50 backdrop-blur-sm z-10">
+                                <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner border border-slate-100">
+                                    <i class="fa-solid fa-wind text-2xl text-slate-300"></i>
+                                </div>
+                                <p class="font-bold text-sm">Shift ini belum ada transaksi selesai</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ================= TAB 2: MASTER DATA & ANALYTICS ================= -->
+        <div id="content-master" class="tab-content grid-cols-1 lg:grid-cols-12 lg:grid-rows-[auto_1fr] gap-4 lg:gap-6 h-full overflow-hidden">
+            
+            <!-- Dashboard Analytics Top -->
+            <section class="lg:col-span-12 shrink-0 grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Filter Tanggal</p>
+                    <div class="flex gap-2 mb-2">
+                        <input type="date" id="filterStart" class="w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 outline-none">
+                        <input type="date" id="filterEnd" class="w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 outline-none">
+                    </div>
+                    <button onclick="applyMasterFilter()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-xl transition shadow-sm">
+                        <i class="fa-solid fa-filter"></i> Terapkan Filter
+                    </button>
+                </div>
+                <div class="bg-indigo-50 p-5 rounded-3xl border border-indigo-100 shadow-sm flex flex-col justify-center">
+                    <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Total Peminjaman</p>
+                    <p class="text-3xl font-extrabold text-indigo-700" id="dashTotal">0</p>
+                </div>
+                <div class="bg-emerald-50 p-5 rounded-3xl border border-emerald-100 shadow-sm flex flex-col justify-center">
+                    <p class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1">Paling Sering Pinjam</p>
+                    <p class="text-lg font-bold text-emerald-800 truncate" id="dashFreqName">-</p>
+                    <p class="text-xs font-bold text-emerald-600 mt-1" id="dashFreqVal">-</p>
+                </div>
+                <div class="bg-amber-50 p-5 rounded-3xl border border-amber-100 shadow-sm flex flex-col justify-center">
+                    <p class="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-1">Asal Line Teraktif</p>
+                    <p class="text-2xl font-extrabold text-amber-700" id="dashActiveLine">-</p>
+                </div>
+            </section>
+
+            <!-- Tabel Master Data (Kiri) & Tambah MP (Kanan) -->
+            <section class="lg:col-span-8 bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
+                    <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-database text-blue-500"></i> Database Riwayat Global
+                    </h2>
+                    <button onclick="exportMasterExcel()" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 border border-emerald-200">
+                        <i class="fa-solid fa-file-excel"></i> Export Excel
+                    </button>
+                </div>
+                <div class="flex-grow flex flex-col overflow-hidden">
+                    <table class="w-full text-left border-collapse whitespace-nowrap shrink-0">
+                        <thead class="bg-slate-100">
+                            <tr class="text-slate-500 text-[11px] uppercase tracking-wider font-extrabold border-b border-slate-200">
+                                <th class="px-5 py-3">Tgl & Shift</th>
+                                <th class="px-5 py-3">Manpower</th>
+                                <th class="px-5 py-3">Fasilitas</th>
+                                <th class="px-5 py-3">Waktu</th>
+                                <th class="px-5 py-3 text-right">Durasi</th>
+                            </tr>
+                        </thead>
+                    </table>
+                    <div class="flex-grow overflow-y-auto custom-scrollbar relative">
+                        <table class="w-full text-left border-collapse whitespace-nowrap">
+                            <tbody id="masterTableBody" class="text-sm divide-y divide-slate-100">
+                                <!-- Master logs di-render JS -->
+                            </tbody>
+                        </table>
+                        <div id="masterEmptyState" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 bg-white/80 z-10 hidden">
+                            <i class="fa-solid fa-box-open text-3xl mb-3 text-slate-300"></i>
+                            <p class="font-bold text-sm">Tidak ada data di rentang tanggal ini</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="lg:col-span-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar pb-2">
+                <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm shrink-0">
+                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-user-plus text-indigo-500"></i> Tambah Master Manpower
+                    </h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">ID Manpower / NIK</label>
+                            <input type="text" id="newMpId" placeholder="Contoh: MP-011" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:border-indigo-500 focus:bg-white transition-all uppercase">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Nama Lengkap</label>
+                            <input type="text" id="newMpName" placeholder="Contoh: Surya Pratama" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:border-indigo-500 focus:bg-white transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Asal Line / Departemen</label>
+                            <select id="newMpLine" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:border-indigo-500 focus:bg-white transition-all">
+                                <option value="PP">Line PP</option>
+                                <option value="HA">Line HA</option>
+                                <option value="ENG">Engineering</option>
+                                <option value="QA">Quality Assurance</option>
+                                <option value="LOG">Logistik</option>
+                                <option value="OTHER">Lainnya</option>
+                            </select>
+                        </div>
+                        <button onclick="saveNewManpower()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition shadow flex justify-center items-center gap-2 mt-2">
+                            <i class="fa-solid fa-floppy-disk"></i> Simpan ke Database
+                        </button>
+                        <p id="mpSaveStatus" class="text-xs font-bold text-center mt-2 hidden"></p>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden shrink-0">
+                    <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white opacity-5 rounded-full blur-2xl"></div>
+                    <h3 class="font-bold text-sm mb-2 flex items-center gap-2"><i class="fa-solid fa-circle-info text-indigo-400"></i> Info Sistem Shift</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-2">
+                        Sistem berjalan otomatis melakukan reset riwayat peminjaman harian (Live Dashboard) setiap <strong>Jam 07:00 Pagi</strong> dan <strong>Jam 20:00 Malam</strong>.
+                    </p>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Data yang di-reset otomatis dibungkus (*bucketed*) dan di-backup ke Firebase Cloud Firestore serta muncul di Master Data ini.
+                    </p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Modal Input (Check-in) dengan Autocomplete -->
+    <div id="checkInModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center z-50 transition-opacity">
+        <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-0 m-4 modal-enter border border-slate-100 overflow-visible" id="checkInContent">
+            
+            <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-[2rem]">
+                <div>
+                    <h3 class="text-xl font-extrabold text-slate-800 tracking-tight">Pinjam Kunci</h3>
+                    <p class="text-xs font-bold text-indigo-600 mt-1 uppercase tracking-wider" id="modalToiletName"></p>
+                </div>
+                <button onclick="closeModal()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors shadow-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="p-8">
+                <input type="hidden" id="selectedToiletId">
+                
+                <div class="relative">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Cari Database Manpower</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <i class="fa-solid fa-magnifying-glass text-slate-400 text-lg"></i>
+                        </div>
+                        <input type="text" id="userName" placeholder="Ketik NIK atau Nama MP..." 
+                            class="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 outline-none transition-all text-base font-bold placeholder-slate-300"
+                            autocomplete="off"
+                            onkeyup="filterMP(event)">
+                    </div>
+                    
+                    <ul id="autocompleteList" class="autocomplete-list absolute z-10 w-full bg-white border border-slate-100 rounded-2xl mt-2 hidden custom-scrollbar divide-y divide-slate-50 p-2"></ul>
+                    
+                    <p id="errorMsg" class="text-xs font-bold text-red-500 mt-3 hidden bg-red-50 px-3 py-2 rounded-lg border border-red-100 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-exclamation"></i> Pilih dari daftar atau ketik lengkap!
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panggil File Database Lokal JS -->
+    <script src="database-mp.js"></script>
+
+    <!-- FIREBASE MODULE (ES6) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDocs, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'toilet-card-enterprise';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            // JIKA INGIN HOSTING MANDIRI, GANTI INI DENGAN CONFIG FIREBASE ANDA
+            apiKey: "AIzaSy_YOUR_API_KEY",
+            authDomain: "your-project.firebaseapp.com",
+            projectId: "your-project",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef"
+        };
+
+        let db, auth;
+        const statusDot = document.getElementById('firebaseStatus');
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            // Gunakan Anonymous Login agar siapa saja bisa baca/tulis public daily buckets
+            signInAnonymously(auth).then(() => {
+                statusDot.classList.replace('bg-slate-300', 'bg-emerald-400');
+                statusDot.title = "Firebase Cloud Connected";
+                
+                // Expose ke global window agar fungsi script biasa bisa pakai
+                window.firebaseDb = db;
+                window.firebaseAppId = appId;
+                
+                // Fetch existing custom MP saat connect
+                window.fetchCustomManpowerFirebase();
+            }).catch(e => {
+                console.warn("Auth Firebase Gagal, fallback ke lokal.", e);
+                statusDot.classList.replace('bg-slate-300', 'bg-amber-400');
+            });
+        } catch (e) {
+            console.warn("Firebase tidak dikonfigurasi, menggunakan LocalStorage 100%.", e);
+            statusDot.classList.replace('bg-slate-300', 'bg-red-400');
+            statusDot.title = "Offline Mode (LocalStorage)";
+        }
+
+        // Global functions for Firebase operations
+        window.saveBucketFirebase = async function(bucketData) {
+            if (!window.firebaseDb) return false;
+            try {
+                // Rule 1: path = artifacts/{appId}/public/data/dailyBuckets
+                const colRef = collection(window.firebaseDb, 'artifacts', window.firebaseAppId, 'public', 'data', 'dailyBuckets');
+                await addDoc(colRef, bucketData);
+                return true;
+            } catch (e) {
+                console.error("Gagal save bucket ke Firebase", e);
+                return false;
+            }
+        };
+
+        window.saveCustomMPFirebase = async function(mpData) {
+            if (!window.firebaseDb) return false;
+            try {
+                const colRef = collection(window.firebaseDb, 'artifacts', window.firebaseAppId, 'public', 'data', 'customManpower');
+                await setDoc(doc(colRef, mpData.id), mpData); // Pakai ID MP sebagai ID Document
+                return true;
+            } catch (e) {
+                console.error("Gagal save MP ke Firebase", e);
+                return false;
+            }
+        };
+
+        window.fetchCustomManpowerFirebase = async function() {
+            if (!window.firebaseDb) return;
+            try {
+                const colRef = collection(window.firebaseDb, 'artifacts', window.firebaseAppId, 'public', 'data', 'customManpower');
+                const snapshot = await getDocs(colRef);
+                const fetchedMPs = [];
+                snapshot.forEach(doc => fetchedMPs.push(doc.data()));
+                
+                // Gabung dengan lokal & update memory
+                const existingLocal = JSON.parse(localStorage.getItem('customManpowerV3')) || [];
+                // Merge distinct
+                const merged = [...existingLocal];
+                fetchedMPs.forEach(f => {
+                    if(!merged.find(m => m.id === f.id)) merged.push(f);
+                });
+                localStorage.setItem('customManpowerV3', JSON.stringify(merged));
+                window.refreshGlobalMPList();
+            } catch (e) {
+                console.error("Fetch custom MP gagal", e);
+            }
+        };
+    </script>
+
+    <!-- CORE SYSTEM LOGIC -->
+    <script>
+        // --- State Management ---
+        const defaultKeys = [
+            { id: 'pp1', line: 'PP', name: 'Kunci 1', isOccupied: false, userObj: null, startTime: null },
+            { id: 'pp2', line: 'PP', name: 'Kunci 2', isOccupied: false, userObj: null, startTime: null },
+            { id: 'ha1', line: 'HA', name: 'Kunci 1', isOccupied: false, userObj: null, startTime: null },
+            { id: 'ha2', line: 'HA', name: 'Kunci 2', isOccupied: false, userObj: null, startTime: null },
+        ];
+
+        let keysData = JSON.parse(localStorage.getItem('toiletKeysV3')) || defaultKeys;
+        let historyLogsLive = JSON.parse(localStorage.getItem('toiletHistoryLiveV3')) || [];
+        let masterHistory = JSON.parse(localStorage.getItem('toiletMasterHistoryV3')) || []; // { shiftId, timestamp, logs: [] }
+        
+        // Gabungkan DB Statis dengan Custom Tambahan
+        let customMPs = JSON.parse(localStorage.getItem('customManpowerV3')) || [];
+        let globalMPList = [];
+        
+        window.refreshGlobalMPList = function() {
+            const base = typeof dbManpower !== 'undefined' ? dbManpower : [];
+            customMPs = JSON.parse(localStorage.getItem('customManpowerV3')) || [];
+            globalMPList = [...base, ...customMPs];
+        };
+        window.refreshGlobalMPList();
+
+        // --- Basic Utils ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            document.getElementById(`content-${tabId}`).classList.add('active');
+
+            if(tabId === 'master') {
+                setDefaultFilterDates();
+                applyMasterFilter();
+            }
+        }
+
+        function saveDataLive() {
+            localStorage.setItem('toiletKeysV3', JSON.stringify(keysData));
+            localStorage.setItem('toiletHistoryLiveV3', JSON.stringify(historyLogsLive));
+        }
+
+        function formatTimeOnly(iso) {
+            if(!iso) return '-';
+            return new Date(iso).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+        }
+        function formatDateFull(iso) {
+            if(!iso) return '-';
+            const d = new Date(iso);
+            return `${d.toLocaleDateString('id-ID')} ${d.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' })}`;
+        }
+
+        function calcDuration(start, end) {
+            const s = Math.floor((new Date(end) - new Date(start)) / 1000);
+            const m = Math.floor(s / 60);
+            const sec = s % 60;
+            return { s: s, str: m > 0 ? `${m}m ${sec}s` : `${sec}s` };
+        }
+
+        function getShiftInfo() {
+            const now = new Date();
+            const h = now.getHours();
+            const d = new Date(now);
+            
+            if (h < 7) {
+                d.setDate(d.getDate() - 1);
+                return { id: d.toLocaleDateString('en-CA') + "_NIGHT", name: "SHIFT MALAM (20:00 - 07:00)" };
+            } else if (h < 20) {
+                return { id: d.toLocaleDateString('en-CA') + "_DAY", name: "SHIFT PAGI (07:00 - 20:00)" };
+            } else {
+                return { id: d.toLocaleDateString('en-CA') + "_NIGHT", name: "SHIFT MALAM (20:00 - 07:00)" };
+            }
+        }
+
+        // --- SHIFT RESET LOGIC ---
+        function checkShiftBoundary() {
+            const currentShift = getShiftInfo();
+            const lastShiftId = localStorage.getItem('lastShiftIdV3');
+            
+            document.getElementById('currentShift').innerText = currentShift.name;
+
+            if (lastShiftId && lastShiftId !== currentShift.id) {
+                console.log("Boundary Shift terlewati! Melakukan Reset Bucket...");
+                triggerShiftReset(lastShiftId);
+            }
+            localStorage.setItem('lastShiftIdV3', currentShift.id);
+        }
+
+        function triggerShiftReset(completedShiftId) {
+            if (historyLogsLive.length > 0) {
+                const bucket = {
+                    shiftId: completedShiftId,
+                    timestamp: new Date().toISOString(),
+                    logs: [...historyLogsLive]
+                };
+
+                // Simpan lokal
+                masterHistory.push(bucket);
+                localStorage.setItem('toiletMasterHistoryV3', JSON.stringify(masterHistory));
+
+                // Backup ke Firebase (Jika terhubung)
+                if (window.saveBucketFirebase) {
+                    window.saveBucketFirebase(bucket);
+                }
+            }
+            
+            // Kosongkan riwayat live (harian) tanpa mengosongkan orang yg masih di dalam toilet (keysData)
+            historyLogsLive = [];
+            saveDataLive();
+            renderLiveDashboard();
+        }
+
+        // --- LIVE DASHBOARD RENDER ---
+        function renderLiveDashboard() {
+            const gridPP = document.getElementById('grid-PP');
+            const gridHA = document.getElementById('grid-HA');
+            gridPP.innerHTML = ''; gridHA.innerHTML = '';
+            
+            let occ = 0;
+
+            keysData.forEach(k => {
+                if (k.isOccupied) occ++;
+                
+                const card = document.createElement('div');
+                if (k.isOccupied) {
+                    // Cek warna durasi (merah jika > 15 mnt)
+                    const diffM = Math.floor((new Date() - new Date(k.startTime)) / 60000);
+                    const timeColor = diffM >= 15 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-amber-50 text-amber-600 border-amber-100';
+                    
+                    card.className = "bg-white border-2 border-amber-200 rounded-2xl p-4 shadow-sm relative overflow-hidden group";
+                    card.innerHTML = `
+                        <div class="absolute top-0 right-0 w-16 h-16 bg-amber-50 rounded-bl-[2rem] -z-10 group-hover:scale-125 transition-transform"></div>
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h3 class="text-sm font-extrabold text-slate-800 mb-1">${k.name}</h3>
+                                <div class="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-100 px-2 py-1 rounded-md text-slate-700 text-xs font-bold">
+                                    <i class="fa-solid fa-id-badge text-indigo-400"></i> ${k.userObj.name}
+                                </div>
+                                <p class="text-[10px] font-bold text-slate-400 mt-1">${k.userObj.id} • Line ${k.userObj.line}</p>
+                            </div>
+                            <button onclick="processCheckOut('${k.id}')" class="w-10 h-10 rounded-xl bg-emerald-100 hover:bg-emerald-500 text-emerald-600 hover:text-white transition-colors flex items-center justify-center shadow-sm border border-emerald-200 shrink-0" title="Tandai Selesai">
+                                <i class="fa-solid fa-check text-lg"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center justify-between text-xs font-bold ${timeColor} px-3 py-2 rounded-xl border">
+                            <span><i class="fa-regular fa-clock"></i> Masuk: ${formatTimeOnly(k.startTime)}</span>
+                            <span class="live-duration" data-start="${k.startTime}">0s</span>
+                        </div>
+                    `;
+                } else {
+                    card.className = "bg-slate-50/50 border border-dashed border-slate-300 hover:border-indigo-400 rounded-2xl p-4 cursor-pointer hover:bg-white transition-colors group flex items-center gap-4 h-[110px]";
+                    card.onclick = () => openModal(k.id);
+                    card.innerHTML = `
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 flex items-center justify-center shrink-0 border border-slate-200 transition-colors">
+                            <i class="fa-solid fa-plus text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-extrabold text-slate-700 mb-0.5 group-hover:text-indigo-700 transition-colors">${k.name}</h3>
+                            <p class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest bg-emerald-50 inline-block px-2 py-0.5 rounded border border-emerald-100"><i class="fa-solid fa-circle text-[8px] animate-pulse"></i> Tersedia</p>
+                        </div>
+                    `;
+                }
+                
+                if (k.line === 'PP') gridPP.appendChild(card);
+                else gridHA.appendChild(card);
+            });
+
+            document.getElementById('statOccupied').innerText = occ;
+            
+            // Render Tabel Live
+            const tbody = document.getElementById('historyTableBody');
+            const empty = document.getElementById('emptyState');
+            tbody.innerHTML = '';
+            
+            if (historyLogsLive.length === 0) {
+                empty.classList.remove('hidden');
+                document.getElementById('statToday').innerText = `0`;
+            } else {
+                empty.classList.add('hidden');
+                document.getElementById('statToday').innerText = `${historyLogsLive.length}`;
+                
+                [...historyLogsLive].reverse().forEach(log => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-white transition-colors";
+                    tr.innerHTML = `
+                        <td class="px-6 py-3">
+                            <div class="font-bold text-slate-700 text-xs">${log.mpObj.name}</div>
+                            <div class="text-[10px] font-semibold text-slate-400">${log.mpObj.id}</div>
+                        </td>
+                        <td class="px-6 py-3">
+                            <span class="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold text-slate-500">${log.mpObj.line}</span>
+                        </td>
+                        <td class="px-6 py-3 text-xs font-bold text-indigo-600">${log.keyName}</td>
+                        <td class="px-6 py-3 text-[11px] font-medium text-slate-500">${formatTimeOnly(log.startTime)} - ${formatTimeOnly(log.endTime)}</td>
+                        <td class="px-6 py-3 text-right">
+                            <span class="inline-block px-2.5 py-1 bg-white border border-emerald-100 rounded-lg text-emerald-600 text-[11px] font-extrabold shadow-sm">
+                                ${log.durStr}
+                            </span>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        // --- PINJAM & KEMBALI ---
+        function openModal(id) {
+            const k = keysData.find(x => x.id === id);
+            document.getElementById('selectedToiletId').value = id;
+            document.getElementById('modalToiletName').innerText = `Fasilitas: Line ${k.line} - ${k.name}`;
+            document.getElementById('userName').value = '';
+            document.getElementById('autocompleteList').classList.add('hidden');
+            document.getElementById('errorMsg').classList.add('hidden');
+            
+            let selectedMPObj = null; // Reset selection
+
+            const m = document.getElementById('checkInModal');
+            const c = document.getElementById('checkInContent');
+            m.classList.remove('hidden');
+            setTimeout(() => {
+                c.classList.add('modal-enter-active');
+                document.getElementById('userName').focus();
+            }, 10);
+        }
+
+        function closeModal() {
+            const m = document.getElementById('checkInModal');
+            const c = document.getElementById('checkInContent');
+            c.classList.remove('modal-enter-active');
+            setTimeout(() => m.classList.add('hidden'), 300);
+        }
+
+        let tempSelectedMP = null; // Variabel bantu untuk autocomplete klik
+        function filterMP(e) {
+            const val = e.target.value.toLowerCase().trim();
+            const list = document.getElementById('autocompleteList');
+            tempSelectedMP = null;
+            
+            if (e.key === 'Enter') {
+                if (val !== '') {
+                    // Cari pas exact
+                    const found = globalMPList.find(m => m.id.toLowerCase() === val || m.name.toLowerCase() === val);
+                    if(found) tempSelectedMP = found;
+                    else tempSelectedMP = { id: 'GUEST', name: document.getElementById('userName').value, line: 'N/A' };
+                    processCheckIn();
+                }
+                return;
+            }
+
+            list.innerHTML = '';
+            if(!val) { list.classList.add('hidden'); return; }
+
+            const filtered = globalMPList.filter(m => m.name.toLowerCase().includes(val) || m.id.toLowerCase().includes(val)).slice(0, 5);
+            
+            if (filtered.length > 0) {
+                filtered.forEach(mp => {
+                    const li = document.createElement('li');
+                    li.className = "px-4 py-3 hover:bg-indigo-50 cursor-pointer flex items-center justify-between group transition-colors rounded-xl";
+                    li.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 flex items-center justify-center text-xs font-bold transition-colors">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-slate-700 group-hover:text-indigo-700">${mp.name}</p>
+                                <p class="text-[10px] font-bold text-slate-400">${mp.id}</p>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded border border-slate-200">Line ${mp.line}</span>
+                    `;
+                    li.onclick = () => {
+                        document.getElementById('userName').value = mp.name;
+                        tempSelectedMP = mp;
+                        list.classList.add('hidden');
+                        processCheckIn(); // Auto proses saat diklik
+                    };
+                    list.appendChild(li);
+                });
+                list.classList.remove('hidden');
+            } else {
+                list.classList.add('hidden');
+            }
+        }
+
+        function processCheckIn() {
+            if(!tempSelectedMP) {
+                const val = document.getElementById('userName').value.trim();
+                if(val) {
+                    tempSelectedMP = { id: 'GUEST', name: val, line: 'N/A' };
+                } else {
+                    document.getElementById('errorMsg').classList.remove('hidden');
+                    return;
+                }
+            }
+
+            const kId = document.getElementById('selectedToiletId').value;
+            const idx = keysData.findIndex(k => k.id === kId);
+            
+            if (idx !== -1) {
+                keysData[idx].isOccupied = true;
+                keysData[idx].userObj = tempSelectedMP;
+                keysData[idx].startTime = new Date().toISOString();
+                
+                saveDataLive();
+                renderLiveDashboard();
+                closeModal();
+            }
+        }
+
+        function processCheckOut(kId) {
+            const idx = keysData.findIndex(k => k.id === kId);
+            if (idx !== -1) {
+                const k = keysData[idx];
+                const end = new Date().toISOString();
+                const dur = calcDuration(k.startTime, end);
+
+                historyLogsLive.push({
+                    id: Date.now(),
+                    mpObj: k.userObj,
+                    keyId: k.id,
+                    keyName: k.name,
+                    facLine: k.line,
+                    startTime: k.startTime,
+                    endTime: end,
+                    durSec: dur.s,
+                    durStr: dur.str
+                });
+
+                keysData[idx].isOccupied = false;
+                keysData[idx].userObj = null;
+                keysData[idx].startTime = null;
+                
+                saveDataLive();
+                renderLiveDashboard();
+            }
+        }
+
+        // --- MASTER DATA & EXPORT LOGIC ---
+        function setDefaultFilterDates() {
+            const t = new Date();
+            const today = t.toISOString().split('T')[0];
+            t.setDate(t.getDate() - 7);
+            const lastWeek = t.toISOString().split('T')[0];
+            
+            document.getElementById('filterEnd').value = today;
+            document.getElementById('filterStart').value = lastWeek;
+        }
+
+        function getFilteredMasterLogs() {
+            const startStr = document.getElementById('filterStart').value;
+            const endStr = document.getElementById('filterEnd').value;
+            
+            if(!startStr || !endStr) return [];
+            
+            // Set boundary time
+            const dStart = new Date(startStr); dStart.setHours(0,0,0,0);
+            const dEnd = new Date(endStr); dEnd.setHours(23,59,59,999);
+
+            let allLogs = [];
+            // Ambil dari Master History (Bucket Firebase/Lokal)
+            masterHistory.forEach(bucket => {
+                const bTime = new Date(bucket.timestamp);
+                if(bTime >= dStart && bTime <= dEnd) {
+                    bucket.logs.forEach(l => { l.shiftId = bucket.shiftId; allLogs.push(l); });
+                }
+            });
+
+            // Tambahkan juga riwayat live HARI INI yang belum di-bucket (agar real-time terlihat)
+            historyLogsLive.forEach(l => {
+                const lTime = new Date(l.endTime);
+                if(lTime >= dStart && lTime <= dEnd) {
+                    l.shiftId = "LIVE_NOW";
+                    allLogs.push(l);
+                }
+            });
+
+            return allLogs;
+        }
+
+        function applyMasterFilter() {
+            const logs = getFilteredMasterLogs();
+            
+            // Kalkulasi Dashboard
+            document.getElementById('dashTotal').innerText = logs.length;
+            
+            let mpFreq = {}, lineFreq = {};
+            logs.forEach(l => {
+                const mpKey = l.mpObj.name;
+                mpFreq[mpKey] = (mpFreq[mpKey] || 0) + 1;
+                
+                const line = l.mpObj.line;
+                if(line !== 'N/A') lineFreq[line] = (lineFreq[line] || 0) + 1;
+            });
+
+            const topMP = Object.keys(mpFreq).length ? Object.keys(mpFreq).reduce((a, b) => mpFreq[a] > mpFreq[b] ? a : b) : '-';
+            const topLine = Object.keys(lineFreq).length ? Object.keys(lineFreq).reduce((a, b) => lineFreq[a] > lineFreq[b] ? a : b) : '-';
+
+            document.getElementById('dashFreqName').innerText = topMP;
+            document.getElementById('dashFreqVal').innerText = topMP !== '-' ? `${mpFreq[topMP]}x Pinjam` : '-';
+            document.getElementById('dashActiveLine').innerText = topLine !== '-' ? `Line ${topLine}` : '-';
+
+            // Render Table
+            const tbody = document.getElementById('masterTableBody');
+            const empty = document.getElementById('masterEmptyState');
+            tbody.innerHTML = '';
+
+            if (logs.length === 0) {
+                empty.classList.remove('hidden');
+            } else {
+                empty.classList.add('hidden');
+                // Sort by Waktu Kembali (Terbaru)
+                logs.sort((a, b) => new Date(b.endTime) - new Date(a.endTime));
+
+                logs.forEach(log => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50 transition-colors";
+                    tr.innerHTML = `
+                        <td class="px-5 py-3">
+                            <div class="text-xs font-bold text-slate-700">${new Date(log.endTime).toLocaleDateString('id-ID')}</div>
+                            <div class="text-[9px] font-extrabold text-indigo-400 bg-indigo-50 inline-block px-1.5 py-0.5 rounded uppercase mt-0.5">${log.shiftId}</div>
+                        </td>
+                        <td class="px-5 py-3">
+                            <div class="text-xs font-bold text-slate-800">${log.mpObj.name}</div>
+                            <div class="text-[10px] font-semibold text-slate-400">${log.mpObj.id} • Line ${log.mpObj.line}</div>
+                        </td>
+                        <td class="px-5 py-3 text-xs font-bold text-slate-600">Line ${log.facLine} - ${log.keyName}</td>
+                        <td class="px-5 py-3 text-[11px] font-medium text-slate-500">${formatTimeOnly(log.startTime)} s/d ${formatTimeOnly(log.endTime)}</td>
+                        <td class="px-5 py-3 text-right font-bold text-xs text-emerald-600">${log.durStr}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        function saveNewManpower() {
+            const id = document.getElementById('newMpId').value.trim().toUpperCase();
+            const name = document.getElementById('newMpName').value.trim();
+            const line = document.getElementById('newMpLine').value;
+            const status = document.getElementById('mpSaveStatus');
+            
+            if(!id || !name) {
+                status.innerText = "Isi NIK dan Nama!";
+                status.className = "text-xs font-bold text-center mt-2 text-red-500 bg-red-50 py-2 rounded";
+                status.classList.remove('hidden');
+                return;
+            }
+
+            const newObj = { id, name, line };
+            
+            // Simpan Lokal
+            customMPs.push(newObj);
+            localStorage.setItem('customManpowerV3', JSON.stringify(customMPs));
+            window.refreshGlobalMPList();
+            
+            // Simpan Firebase
+            if(window.saveCustomMPFirebase) {
+                window.saveCustomMPFirebase(newObj);
+            }
+
+            status.innerText = "Berhasil Disimpan!";
+            status.className = "text-xs font-bold text-center mt-2 text-emerald-600 bg-emerald-50 py-2 rounded";
+            status.classList.remove('hidden');
+            
+            document.getElementById('newMpId').value = '';
+            document.getElementById('newMpName').value = '';
+            setTimeout(() => status.classList.add('hidden'), 3000);
+        }
+
+        function exportMasterExcel() {
+            const logs = getFilteredMasterLogs();
+            if (logs.length === 0) return;
+            
+            let csv = "Shift ID,Tanggal Selesai,NIK / ID MP,Nama MP,Asal Line MP,Fasilitas Line,Nama Kunci,Waktu Masuk,Waktu Keluar,Total Durasi (Detik),Total Durasi (Teks)\n";
+
+            logs.sort((a, b) => new Date(b.endTime) - new Date(a.endTime)).forEach(l => {
+                const date = new Date(l.endTime).toLocaleDateString('id-ID');
+                csv += `"${l.shiftId}","${date}","${l.mpObj.id}","${l.mpObj.name}","${l.mpObj.line}","${l.facLine}","${l.keyName}","${formatDateFull(l.startTime)}","${formatDateFull(l.endTime)}",${l.durSec},"${l.durStr}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Laporan_Toilet_Master_${document.getElementById('filterStart').value}_sd_${document.getElementById('filterEnd').value}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- GLOBAL TIMERS & INIT ---
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('currentTime').innerText = now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+            
+            // Cek boundary reset otomatis tiap detik
+            checkShiftBoundary();
+
+            // Update live duration di UI
+            document.querySelectorAll('.live-duration').forEach(el => {
+                const s = el.getAttribute('data-start');
+                if(s) {
+                    const dur = calcDuration(s, new Date().toISOString());
+                    el.innerText = dur.str;
+                    
+                    // Ganti warna parent jika > 15 mnt
+                    if(dur.s >= 900) {
+                        const p = el.parentElement;
+                        if(p.classList.contains('bg-amber-50')) {
+                            p.classList.remove('bg-amber-50', 'text-amber-600', 'border-amber-100');
+                            p.classList.add('bg-red-50', 'text-red-600', 'border-red-100');
+                        }
+                    }
+                }
+            });
+        }, 1000);
+
+        // Hide dropdown click outside
+        document.addEventListener('click', e => {
+            if(e.target.id !== 'userName') {
+                document.getElementById('autocompleteList').classList.add('hidden');
+            }
+        });
+
+        // Initialize
+        checkShiftBoundary();
+        renderLiveDashboard();
+    </script>
+</body>
+</html>
