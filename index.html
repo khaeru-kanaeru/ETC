@@ -316,8 +316,13 @@
                         <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
                             <i class="fa-solid fa-users text-blue-500"></i> Daftar Users / Manpower
                         </h2>
-                        <div class="text-xs font-bold bg-blue-50 text-blue-600 px-3 py-1 rounded-lg border border-blue-100">
-                            Total: <span id="totalUsersBadge">0</span>
+                        <div class="flex items-center gap-3">
+                            <div class="text-xs font-bold bg-blue-50 text-blue-600 px-3 py-1 rounded-lg border border-blue-100">
+                                Total: <span id="totalUsersBadge">0</span>
+                            </div>
+                            <button onclick="openDeleteAllMpModal()" class="text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-100 transition-colors flex items-center gap-2" title="Hapus Semua MP di Area ini">
+                                <i class="fa-solid fa-trash-can"></i> Hapus Semua
+                            </button>
                         </div>
                     </div>
                     
@@ -359,7 +364,7 @@
         </div>
     </div>
 
-    <!-- Modal Hapus MP -->
+    <!-- Modal Hapus 1 MP -->
     <div id="deleteMpModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 m-4 text-center border border-slate-200">
             <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -371,6 +376,23 @@
             <div class="flex gap-3">
                 <button onclick="closeDeleteMpModal()" class="flex-1 px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition">Batal</button>
                 <button onclick="confirmDeleteMp()" class="flex-1 px-4 py-2 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition">Ya, Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Hapus Semua MP (Isolasi Area) -->
+    <div id="deleteAllMpModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 m-4 text-center border border-slate-200">
+            <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-dumpster-fire text-2xl"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800">Hapus Semua Database MP?</h3>
+            <p class="text-sm text-slate-500 mt-2 mb-6">Seluruh data Manpower di <strong>Area ini</strong> akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.</p>
+            <div class="flex gap-3">
+                <button onclick="closeDeleteAllMpModal()" class="flex-1 px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition">Batal</button>
+                <button onclick="confirmDeleteAllMp()" id="btnConfirmDeleteAllMp" class="flex-1 px-4 py-2 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition flex items-center justify-center gap-2">
+                    Ya, Hapus Semua
+                </button>
             </div>
         </div>
     </div>
@@ -407,12 +429,12 @@
 
         let db, auth, currentUser;
         
-        // Memori Global Cerdas (Sinkron Otomatis)
+        // Memori Global
         window.cloudLines = [];
         window.cloudKeys = [];
         window.cloudUsers = [];
         window.cloudHistory = [];
-        window.isLoadingLines = true; // State Loading untuk Skeleton ID Card
+        window.isLoadingLines = true; 
 
         const dot = document.getElementById('cloudDot');
         const txt = document.getElementById('cloudText');
@@ -502,15 +524,28 @@
             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appKeys', docId));
         };
 
+        // Injecting hostLine for database isolation
         window.fbAddUser = async function(userObj) {
             if(!currentUser) return;
-            const docId = `usr_${userObj.id}`;
+            const docId = `usr_${userObj.hostLine}_${userObj.id}`;
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appUsers', docId), userObj);
         };
 
         window.fbDeleteUser = async function(docId) {
             if(!currentUser) return;
             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appUsers', docId));
+        };
+
+        // Mass delete for current line users
+        window.fbDeleteAllUsers = async function(hostLine) {
+            if(!currentUser) return;
+            const usersToDelete = window.cloudUsers.filter(u => u.hostLine === hostLine || (!u.hostLine && u.line === hostLine));
+            
+            // Delete running in parallel
+            const deletePromises = usersToDelete.map(u => 
+                deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appUsers', u.docId))
+            );
+            await Promise.all(deletePromises);
         };
 
         window.fbAddHistory = async function(logObj) {
@@ -527,7 +562,7 @@
         window.fbBatchAddUsers = async function(usersArray) {
             if(!currentUser) return;
             for(const u of usersArray) {
-                const docId = `usr_${u.id}`;
+                const docId = `usr_${u.hostLine}_${u.id}`;
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appUsers', docId), u);
             }
         };
@@ -536,7 +571,7 @@
     <!-- ================= APPLICATION LOGIC ================= -->
     <script>
         window.currentLineId = null;
-        window.isLoadingLines = true; // Inisialisasi awal skeleton
+        window.isLoadingLines = true; 
 
         function initApp() {
             setQuickFilter('week'); 
@@ -591,7 +626,6 @@
             const grid = document.getElementById('linesGrid');
             grid.innerHTML = '';
             
-            // Tampilan Loading Skeleton
             if (window.isLoadingLines) {
                 for(let i=0; i<3; i++) {
                     grid.innerHTML += `
@@ -617,7 +651,6 @@
                 return 0;
             });
 
-            // Palet warna lanyard & kartu
             const colorPalette = [
                 { bg: 'bg-blue-500', text: 'text-blue-600', light: 'bg-blue-50', border: 'border-blue-500', icon: 'fa-layer-group' },
                 { bg: 'bg-purple-500', text: 'text-purple-600', light: 'bg-purple-50', border: 'border-purple-500', icon: 'fa-boxes-stacked' },
@@ -631,22 +664,16 @@
                 const color = colorPalette[index % colorPalette.length];
                 grid.innerHTML += `
                     <div onclick="loginLine('${l.id}')" class="flex flex-col items-center group cursor-pointer hover:-translate-y-3 transition-transform duration-300 mt-1">
-                        <!-- Lanyard Strap -->
                         <div class="w-3 h-16 ${color.bg} shadow-inner border-x border-black/10"></div>
-                        <!-- ID Card Box -->
                         <div class="w-44 bg-white rounded-2xl shadow-lg border-b-4 ${color.border} relative flex flex-col items-center pt-3 pb-6 px-4 hover:shadow-2xl transition-shadow">
-                            <!-- Gantungan Klip -->
                             <div class="w-8 h-1.5 bg-slate-200 rounded-full mb-5 shadow-inner border border-slate-300"></div>
-                            
                             <div class="w-16 h-16 ${color.light} ${color.text} rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-100 relative overflow-hidden">
                                 <div class="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
                                 <i class="fa-solid ${color.icon} text-2xl relative z-10"></i>
                             </div>
-                            
                             <h3 class="font-extrabold text-slate-800 text-xl tracking-tight mb-1 uppercase">${l.id}</h3>
                             <p class="text-[11px] text-slate-500 font-bold truncate w-full text-center tracking-wider uppercase">${l.name}</p>
                             
-                            <!-- Hiasan Barcode Bawah -->
                             <div class="mt-5 flex gap-0.5 justify-center opacity-30 h-6">
                                 <div class="w-1 bg-slate-800"></div><div class="w-0.5 bg-slate-800"></div><div class="w-1.5 bg-slate-800"></div>
                                 <div class="w-0.5 bg-slate-800"></div><div class="w-1 bg-slate-800"></div><div class="w-1 bg-slate-800"></div>
@@ -657,7 +684,6 @@
                 `;
             });
             
-            // Kartu Tambah Line (Garis Putus-putus)
             grid.innerHTML += `
                 <div onclick="openAddLineModal()" class="flex flex-col items-center group cursor-pointer hover:-translate-y-3 transition-transform duration-300 opacity-80 hover:opacity-100 mt-1">
                     <div class="w-3 h-16 bg-slate-200 border-x border-slate-300 border-dashed"></div>
@@ -845,7 +871,8 @@
             const tbody = document.getElementById('usersTableBody');
             tbody.innerHTML = '';
             
-            const users = window.cloudUsers || [];
+            // ISOLASI DATABASE: Hanya render user milik Line saat ini
+            const users = (window.cloudUsers || []).filter(u => u.hostLine === window.currentLineId || (!u.hostLine && u.line === window.currentLineId));
             document.getElementById('totalUsersBadge').innerText = users.length;
             
             users.sort((a,b) => a.name.localeCompare(b.name)).forEach(u => {
@@ -858,7 +885,7 @@
                         <span class="px-2.5 py-1 bg-slate-100 text-slate-600 rounded text-[10px] font-bold border border-slate-200">${u.line}</span>
                     </td>
                     <td class="px-5 py-3 border-b border-slate-100 text-right">
-                        <button onclick="openDeleteMpModal('${u.docId}', '${u.name}')" class="w-8 h-8 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg flex items-center justify-center transition border border-red-100 ml-auto">
+                        <button onclick="openDeleteMpModal('${u.docId}', '${u.name}')" class="w-8 h-8 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg flex items-center justify-center transition border border-red-100 ml-auto" title="Hapus MP">
                             <i class="fa-solid fa-trash-can text-xs"></i>
                         </button>
                     </td>
@@ -872,9 +899,12 @@
             const val = document.getElementById('bigInput').value.trim().toLowerCase();
             const list = document.getElementById('autocompleteList');
             
+            // ISOLASI DATABASE: Hanya cari di user milik Line saat ini
+            const lineUsers = (window.cloudUsers || []).filter(u => u.hostLine === window.currentLineId || (!u.hostLine && u.line === window.currentLineId));
+
             if (e.key === 'Enter') {
                 if (val !== '') {
-                    const found = window.cloudUsers.find(m => m.id.toLowerCase() === val || m.name.toLowerCase().includes(val));
+                    const found = lineUsers.find(m => m.id.toLowerCase() === val || m.name.toLowerCase().includes(val));
                     borrowKey(found || { id: 'N/A', name: document.getElementById('bigInput').value.trim(), line: 'Unknown' });
                     list.classList.add('hidden');
                 }
@@ -883,7 +913,7 @@
 
             if (!val) { list.classList.add('hidden'); return; }
 
-            const filtered = window.cloudUsers.filter(mp => mp.name.toLowerCase().includes(val) || mp.id.toLowerCase().includes(val)).slice(0, 5);
+            const filtered = lineUsers.filter(mp => mp.name.toLowerCase().includes(val) || mp.id.toLowerCase().includes(val)).slice(0, 5);
             list.innerHTML = '';
 
             if (filtered.length > 0) {
@@ -990,6 +1020,26 @@
             closeDeleteMpModal();
         }
 
+        window.openDeleteAllMpModal = function() {
+            document.getElementById('deleteAllMpModal').classList.remove('hidden');
+        }
+        window.closeDeleteAllMpModal = function() {
+            document.getElementById('deleteAllMpModal').classList.add('hidden');
+        }
+        window.confirmDeleteAllMp = async function() {
+            const btn = document.getElementById('btnConfirmDeleteAllMp');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menghapus...';
+            
+            if(window.fbDeleteAllUsers && window.currentLineId) {
+                await window.fbDeleteAllUsers(window.currentLineId);
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = 'Ya, Hapus Semua';
+            closeDeleteAllMpModal();
+        }
+
         window.openAddLineModal = function() {
             document.getElementById('newLineInput').value = '';
             document.getElementById('addLineModal').classList.remove('hidden');
@@ -1008,7 +1058,8 @@
             const name = document.getElementById('newMpName').value.trim();
             const line = document.getElementById('newMpLine').value.trim().toUpperCase();
             if(id && name && window.fbAddUser) {
-                window.fbAddUser({ id, name, line: line || 'N/A' });
+                // ISOLASI DATABASE: Sisipkan hostLine
+                window.fbAddUser({ id, name, line: line || 'N/A', hostLine: window.currentLineId });
                 document.getElementById('newMpId').value = '';
                 document.getElementById('newMpName').value = '';
                 document.getElementById('newMpLine').value = '';
@@ -1083,7 +1134,14 @@
                     const id = row['ID'] || row['id'];
                     const name = row['NAMA'] || row['Nama'] || row['nama'];
                     const line = row['LINE'] || row['Line'] || row['line'] || 'N/A';
-                    if(id && name) usersToUpload.push({ id: id.toString().toUpperCase(), name: name.toString(), line: line.toString().toUpperCase() });
+                    if(id && name) {
+                        usersToUpload.push({ 
+                            id: id.toString().toUpperCase(), 
+                            name: name.toString(), 
+                            line: line.toString().toUpperCase(),
+                            hostLine: window.currentLineId // ISOLASI DATABASE
+                        });
+                    }
                 });
 
                 if(usersToUpload.length > 0 && window.fbBatchAddUsers) {
