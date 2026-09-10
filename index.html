@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Manajemen Toilet Card - Enterprise</title>
+    <title>Sistem Manajemen Toilet Card</title>
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS (Excel) -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -29,97 +32,88 @@
 
         .tab-btn.active { background-color: #eef2ff; color: #4f46e5; border-bottom: 2px solid #4f46e5; }
         
-        .cursor-context-menu { cursor: context-menu; }
+        .history-row { cursor: context-menu; }
 
-        @media (max-width: 1024px) {
-            body { overflow: auto; }
-        }
+        @media (max-width: 1024px) { body { overflow: auto; } }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 h-screen w-screen selection:bg-indigo-100 selection:text-indigo-900 flex flex-col">
 
-    <!-- ================= VIEW: LOGIN ================= -->
-    <div id="loginView" class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-100">
-        <div class="bg-white rounded-[2rem] shadow-xl w-full max-w-md p-8 text-center fade-in border border-slate-200 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-            <div class="w-20 h-20 bg-slate-50 text-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100">
+    <!-- ================= VIEW: LOGIN (LANYARD ID CARDS) ================= -->
+    <div id="loginView" class="fixed inset-0 z-50 flex flex-col bg-slate-100 overflow-y-auto overflow-x-hidden">
+        
+        <div class="w-full text-center mt-12 mb-10 shrink-0 fade-in px-4">
+            <div class="w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-200 flex items-center justify-center mx-auto mb-4 text-indigo-600">
                 <i class="fa-solid fa-id-card-clip text-3xl"></i>
             </div>
-            <h1 class="text-2xl font-extrabold text-slate-900 mb-2 tracking-tight">Toilet Access System</h1>
-            <p class="text-slate-500 mb-8 font-medium text-sm">Pilih area pengawasan Anda.</p>
-            
-            <div class="grid grid-cols-1 gap-4">
-                <button onclick="login('PP')" class="group relative p-4 bg-white border-2 border-slate-100 rounded-2xl hover:border-blue-500 hover:shadow-md transition-all text-left flex items-center justify-between">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                            <i class="fa-solid fa-users-gear text-lg"></i>
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-slate-800 text-lg">Line PP</h3>
-                            <p class="text-xs text-slate-500 font-medium">Masuk sebagai Admin PP</p>
-                        </div>
-                    </div>
-                    <i class="fa-solid fa-chevron-right text-slate-300 group-hover:text-blue-500"></i>
-                </button>
+            <h1 class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Toilet Access System</h1>
+            <p class="text-slate-500 mt-2 font-medium">Silakan tarik ID Card pengawasan Anda untuk memulai</p>
+        </div>
 
-                <button onclick="login('HA')" class="group relative p-4 bg-white border-2 border-slate-100 rounded-2xl hover:border-purple-500 hover:shadow-md transition-all text-left flex items-center justify-between">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition-colors">
-                            <i class="fa-solid fa-user-astronaut text-lg"></i>
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-slate-800 text-lg">Line HA</h3>
-                            <p class="text-xs text-slate-500 font-medium">Masuk sebagai Admin HA</p>
-                        </div>
-                    </div>
-                    <i class="fa-solid fa-chevron-right text-slate-300 group-hover:text-purple-500"></i>
-                </button>
+        <!-- Gantungan Pipa & Grid Lanyard -->
+        <div class="w-full max-w-5xl mx-auto px-6 pb-20 relative">
+            <!-- Pipa Besi (Rack) -->
+            <div class="w-full h-4 bg-gradient-to-b from-slate-300 to-slate-400 rounded-full shadow-[0_5px_10px_rgba(0,0,0,0.1)] relative z-20"></div>
+            
+            <!-- Area Render ID Card (bergeser ke atas sedikit agar nyambung ke pipa) -->
+            <div id="linesGrid" class="flex flex-wrap justify-center gap-8 relative z-10 -mt-1 px-4">
+                <!-- Skeleton / Real Cards dirender JS disini -->
             </div>
         </div>
     </div>
 
-    <!-- ================= VIEW: DASHBOARD MAINFRAME ================= -->
+    <!-- ================= VIEW: MAINFRAME DASHBOARD ================= -->
     <div id="dashboardView" class="hidden flex-col h-full w-full">
+        <!-- HEADER -->
         <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 flex-none h-[72px] flex items-center px-4 md:px-6 z-20">
             <div class="w-full max-w-[1600px] mx-auto flex justify-between items-center">
                 <div class="flex items-center gap-3">
-                    <div id="headerIcon" class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-md"></div>
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-md bg-gradient-to-br from-indigo-500 to-blue-600">
+                        <i class="fa-solid fa-location-dot"></i>
+                    </div>
                     <div class="hidden sm:block">
-                        <h1 class="text-lg font-extrabold tracking-tight text-slate-900 leading-tight" id="headerTitle">Dashboard</h1>
-                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider" id="headerSubtitle">Access Control</p>
+                        <h1 class="text-lg font-extrabold tracking-tight text-slate-900 leading-tight">Area <span id="headerLineName" class="text-indigo-600"></span></h1>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Access Control</p>
                     </div>
                 </div>
                 
                 <!-- TABS -->
-                <div class="flex bg-slate-100 p-1 rounded-xl mx-2">
-                    <button onclick="switchTab('live')" id="tabBtn-live" class="tab-btn active px-4 py-2 rounded-lg text-sm font-bold text-slate-500 transition-colors flex items-center gap-2">
-                        <i class="fa-solid fa-bolt"></i> <span class="hidden sm:inline">Harian</span>
+                <div class="flex bg-slate-100 p-1 rounded-xl mx-2 overflow-x-auto custom-scrollbar">
+                    <button onclick="switchTab('beranda')" id="tabBtn-beranda" class="tab-btn active px-4 py-2 rounded-lg text-sm font-bold text-slate-500 transition-colors flex items-center gap-2 shrink-0">
+                        <i class="fa-solid fa-bolt"></i> <span class="hidden sm:inline">Beranda</span>
                     </button>
-                    <button onclick="switchTab('master')" id="tabBtn-master" class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-slate-500 transition-colors flex items-center gap-2">
-                        <i class="fa-solid fa-database"></i> <span class="hidden sm:inline">Master Data</span>
+                    <button onclick="switchTab('resume')" id="tabBtn-resume" class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-slate-500 transition-colors flex items-center gap-2 shrink-0">
+                        <i class="fa-solid fa-chart-simple"></i> <span class="hidden sm:inline">Resume</span>
+                    </button>
+                    <button onclick="switchTab('users')" id="tabBtn-users" class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-slate-500 transition-colors flex items-center gap-2 shrink-0">
+                        <i class="fa-solid fa-users"></i> <span class="hidden sm:inline">Users</span>
                     </button>
                 </div>
 
                 <div class="flex items-center gap-3">
-                    <!-- Indikator Jam dan Badge Shift dihapus sesuai permintaan, hanya menyisakan titik status Cloud dan tombol Logout -->
-                    <div id="cloudStatus" class="w-3 h-3 rounded-full bg-slate-300 shadow-sm" title="Cloud Database Status"></div>
-                    <button onclick="logout()" class="w-10 h-10 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl flex items-center justify-center transition-colors border border-red-100" title="Keluar">
-                        <i class="fa-solid fa-power-off"></i>
+                    <div id="cloudStatus" class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg shrink-0">
+                        <span id="cloudDot" class="w-2.5 h-2.5 rounded-full bg-slate-300 animate-pulse"></span>
+                        <span id="cloudText" class="text-[10px] font-bold text-slate-500 uppercase hidden sm:inline">Connecting</span>
+                    </div>
+                    <button onclick="logout()" class="w-10 h-10 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl flex items-center justify-center transition-colors border border-red-100 shrink-0" title="Ganti Area">
+                        <i class="fa-solid fa-right-from-bracket"></i>
                     </button>
                 </div>
             </div>
         </header>
 
+        <!-- MAIN CONTENT AREA -->
         <main class="flex-grow max-w-[1600px] mx-auto w-full p-4 lg:p-6 overflow-hidden relative">
             
-            <!-- ================= TAB 1: LIVE DASHBOARD ================= -->
-            <div id="view-live" class="flex flex-col lg:grid lg:grid-cols-12 lg:grid-rows-[auto_1fr] gap-4 lg:gap-6 h-full fade-in overflow-y-auto lg:overflow-hidden">
+            <!-- ================= TAB 1: BERANDA ================= -->
+            <div id="view-beranda" class="flex flex-col lg:grid lg:grid-cols-12 lg:grid-rows-[auto_1fr] gap-4 lg:gap-6 h-full fade-in overflow-y-auto lg:overflow-hidden">
+                
                 <section class="lg:col-span-5 bg-white p-6 rounded-3xl shadow-sm border border-slate-200 relative shrink-0">
                     <div class="flex justify-between items-end mb-4">
                         <h2 class="text-sm font-bold text-indigo-600 uppercase tracking-widest flex items-center gap-2">
                             <i class="fa-solid fa-qrcode"></i> Peminjaman Live
                         </h2>
-                        <div id="keyStatusBadge" class="px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border"></div>
+                        <div id="keyStatusBadge" class="px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 border"></div>
                     </div>
 
                     <div class="relative z-30">
@@ -138,18 +132,17 @@
 
                 <section class="lg:col-span-7 bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-center shrink-0">
                     <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <i class="fa-solid fa-bolt"></i> Statistik Harian (<span id="statLineName"></span>)
+                        <i class="fa-solid fa-bolt"></i> Statistik Hari Ini
                     </h2>
-                    
                     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Transaksi Selesai</p>
-                            <p class="text-2xl font-extrabold text-blue-600" id="statTodayCount">0</p>
+                        <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
+                            <p class="text-[10px] font-bold text-indigo-400 uppercase mb-1">Total Transaksi</p>
+                            <p class="text-2xl font-extrabold text-indigo-600" id="statTodayCount">0</p>
                         </div>
                         <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Sering Minjam</p>
-                            <p class="text-sm font-bold text-slate-800 truncate" id="statLiveFreqMP">-</p>
-                            <p class="text-[10px] text-purple-600 font-bold" id="statLiveFreqVal">-</p>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Paling Sering</p>
+                            <p class="text-sm font-bold text-slate-800 truncate" id="statFreqMP">-</p>
+                            <p class="text-[10px] text-indigo-600 font-bold" id="statFreqVal">-</p>
                         </div>
                         <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100">
                             <p class="text-[10px] font-bold text-amber-500 uppercase mb-1">Durasi Terlama</p>
@@ -157,33 +150,37 @@
                             <p class="text-[10px] text-amber-600 font-bold" id="statLongestVal">-</p>
                         </div>
                         <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
-                            <p class="text-[10px] font-bold text-emerald-500 uppercase mb-1">Asal Line Teraktif</p>
-                            <p class="text-sm font-bold text-emerald-800 truncate" id="statLiveLine">-</p>
-                            <p class="text-[10px] text-emerald-600 font-bold" id="statLiveLineVal">-</p>
+                            <p class="text-[10px] font-bold text-emerald-500 uppercase mb-1">Asal Line Aktif</p>
+                            <p class="text-lg font-bold text-emerald-700 truncate mt-1" id="statActiveLine">-</p>
                         </div>
                     </div>
                 </section>
 
                 <section class="lg:col-span-5 bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
-                    <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <i class="fa-solid fa-key text-amber-500"></i> Kunci Digunakan
-                    </h2>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                            <i class="fa-solid fa-key text-amber-500"></i> Status Kunci
+                        </h2>
+                        <button onclick="addNewKey()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors border border-indigo-100 flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-plus"></i> Tambah Kunci
+                        </button>
+                    </div>
                     <div id="activeCardsContainer" class="flex-grow flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-1">
-                        <!-- Cards Kunci di-render di sini -->
+                        <!-- Kartu Kunci -->
                     </div>
                 </section>
 
-                <section class="lg:col-span-7 bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
-                    <div class="flex justify-between items-center mb-4">
+                <section class="lg:col-span-7 bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+                    <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
                         <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                            <i class="fa-solid fa-clipboard-check text-emerald-500"></i> Riwayat Shift Aktif
+                            <i class="fa-solid fa-clipboard-check text-emerald-500"></i> Riwayat Hari Ini
                         </h2>
-                        <span class="text-[10px] font-bold text-slate-400"><i class="fa-solid fa-circle-info text-blue-400"></i> Klik Kanan tabel untuk Batalkan Transaksi</span>
+                        <span class="text-[10px] font-bold text-slate-400 bg-white border border-slate-200 px-2 py-1 rounded">Klik Kanan: Cancel</span>
                     </div>
                     
-                    <div class="flex-grow overflow-hidden flex flex-col border border-slate-100 rounded-2xl bg-slate-50/30">
+                    <div class="flex-grow overflow-y-auto custom-scrollbar relative">
                         <table class="w-full text-left border-collapse whitespace-nowrap">
-                            <thead class="sticky top-0 bg-slate-100 z-10">
+                            <thead class="sticky top-0 bg-slate-100 z-10 shadow-sm">
                                 <tr class="text-slate-500 text-[11px] uppercase tracking-wider font-extrabold border-b border-slate-200">
                                     <th class="px-5 py-3">Data MP</th>
                                     <th class="px-5 py-3">Fasilitas</th>
@@ -191,175 +188,212 @@
                                     <th class="px-5 py-3 text-right">Durasi</th>
                                 </tr>
                             </thead>
+                            <tbody id="historyTableBody" class="text-sm divide-y divide-slate-100 bg-white">
+                                <!-- Data render -->
+                            </tbody>
                         </table>
-                        
-                        <div class="flex-grow overflow-y-auto custom-scrollbar">
-                            <table class="w-full text-left border-collapse whitespace-nowrap">
-                                <tbody id="historyTableBody" class="text-sm divide-y divide-slate-100">
-                                    <!-- Data riwayat harian -->
-                                </tbody>
-                            </table>
-                            <div id="emptyHistory" class="p-12 text-center text-slate-400 hidden flex-col items-center justify-center h-full">
-                                <i class="fa-solid fa-ghost text-3xl mb-2 opacity-50"></i>
-                                <p class="font-medium text-sm">Belum ada aktivitas di shift ini.</p>
-                            </div>
-                        </div>
                     </div>
                 </section>
             </div>
 
-            <!-- ================= TAB 2: MASTER DATA ================= -->
-            <div id="view-master" class="hidden flex-col lg:grid lg:grid-cols-12 lg:grid-rows-[auto_1fr] gap-4 lg:gap-6 h-full fade-in overflow-y-auto lg:overflow-hidden">
+            <!-- ================= TAB 2: RESUME ================= -->
+            <div id="view-resume" class="hidden flex-col lg:grid lg:grid-cols-12 lg:grid-rows-[auto_1fr] gap-4 lg:gap-6 h-full fade-in overflow-y-auto lg:overflow-hidden">
                 
-                <!-- Filter & Analytics -->
-                <section class="lg:col-span-12 shrink-0 grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-center">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Filter Rentang Waktu</p>
-                        <div class="flex gap-2 mb-3">
-                            <input type="date" id="filterStart" class="w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 outline-none">
-                            <input type="date" id="filterEnd" class="w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 outline-none">
+                <section class="lg:col-span-12 shrink-0 grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                        <div class="flex justify-between items-center mb-2">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rentang Waktu</p>
+                            <div class="flex gap-1">
+                                <button onclick="setQuickFilter('week')" class="text-[9px] bg-slate-100 hover:bg-slate-200 font-bold px-1.5 py-0.5 rounded text-slate-600">1 Mgg</button>
+                                <button onclick="setQuickFilter('month')" class="text-[9px] bg-slate-100 hover:bg-slate-200 font-bold px-1.5 py-0.5 rounded text-slate-600">1 Bln</button>
+                            </div>
                         </div>
-                        <button onclick="applyMasterFilter()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 rounded-xl transition shadow-sm">
-                            <i class="fa-solid fa-filter"></i> Terapkan Filter
+                        <div class="flex gap-1 mb-2">
+                            <input type="date" id="filterStart" class="w-full text-[10px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 outline-none">
+                            <input type="date" id="filterEnd" class="w-full text-[10px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 outline-none">
+                        </div>
+                        <button onclick="applyMasterFilter()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-1.5 rounded-lg transition shadow-sm">
+                            <i class="fa-solid fa-filter"></i> Terapkan
                         </button>
                     </div>
                     
-                    <div class="bg-indigo-50 p-5 rounded-3xl border border-indigo-100 shadow-sm flex flex-col justify-center">
+                    <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm flex flex-col justify-center">
                         <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Total Transaksi</p>
-                        <p class="text-4xl font-extrabold text-indigo-700" id="masterTotal">0</p>
+                        <p class="text-3xl font-extrabold text-indigo-700" id="masterTotal">0</p>
                     </div>
-                    
-                    <div class="bg-emerald-50 p-5 rounded-3xl border border-emerald-100 shadow-sm flex flex-col justify-center">
-                        <p class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1">Paling Sering Pinjam</p>
-                        <p class="text-xl font-bold text-emerald-800 truncate mt-1" id="masterFreqMP">-</p>
-                        <p class="text-xs font-bold text-emerald-600 mt-1" id="masterFreqVal">-</p>
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Paling Sering</p>
+                        <p class="text-lg font-bold text-slate-800 truncate mt-1" id="masterFreqMP">-</p>
+                        <p class="text-[10px] font-bold text-slate-500 mt-1" id="masterFreqVal">-</p>
                     </div>
-                    
-                    <div class="bg-amber-50 p-5 rounded-3xl border border-amber-100 shadow-sm flex flex-col justify-center">
-                        <p class="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-1">Durasi Terlama (Filtered)</p>
-                        <p class="text-xl font-bold text-amber-800 truncate mt-1" id="masterLongestMP">-</p>
-                        <p class="text-xs font-bold text-amber-600 mt-1" id="masterLongestVal">-</p>
+                    <div class="bg-amber-50 p-4 rounded-2xl border border-amber-100 shadow-sm flex flex-col justify-center">
+                        <p class="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-1">Durasi Terlama</p>
+                        <p class="text-lg font-bold text-amber-800 truncate mt-1" id="masterLongestMP">-</p>
+                        <p class="text-[10px] font-bold text-amber-600 mt-1" id="masterLongestVal">-</p>
+                    </div>
+                    <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm flex flex-col justify-center">
+                        <p class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1">Asal Line Aktif</p>
+                        <p class="text-xl font-bold text-emerald-700 truncate mt-1" id="masterActiveLine">-</p>
                     </div>
                 </section>
 
-                <!-- Data Table & Buttons (Sekarang Full Width / col-span-12) -->
                 <section class="lg:col-span-12 bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
-                    <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center bg-slate-50/50 shrink-0 gap-4">
+                    <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
                         <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fa-solid fa-database text-blue-500"></i> Database Riwayat (Filtered)
+                            <i class="fa-solid fa-database text-blue-500"></i> Database Riwayat
                         </h2>
-                        <div class="flex items-center gap-2">
-                            <!-- Tombol Tambah MP yang Baru -->
-                            <button onclick="openAddMpModal()" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 border border-indigo-200 shadow-sm">
-                                <i class="fa-solid fa-user-plus"></i> Tambah MP
-                            </button>
-                            <button onclick="exportMasterExcel()" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 border border-emerald-200 shadow-sm">
-                                <i class="fa-solid fa-file-excel"></i> Export CSV
-                            </button>
-                        </div>
+                        <button onclick="exportMasterExcel()" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 border border-emerald-200 shadow-sm">
+                            <i class="fa-solid fa-file-excel"></i> Export CSV
+                        </button>
                     </div>
                     
-                    <div class="flex-grow flex flex-col overflow-hidden">
-                        <table class="w-full text-left border-collapse whitespace-nowrap shrink-0">
-                            <thead class="bg-slate-100">
+                    <div class="flex-grow overflow-y-auto custom-scrollbar relative">
+                        <table class="w-full text-left border-collapse whitespace-nowrap">
+                            <thead class="sticky top-0 bg-slate-100 shadow-sm z-10">
                                 <tr class="text-slate-500 text-[11px] uppercase tracking-wider font-extrabold border-b border-slate-200">
-                                    <th class="px-5 py-3">Tgl & Shift</th>
+                                    <th class="px-5 py-3">Tanggal</th>
                                     <th class="px-5 py-3">Manpower</th>
+                                    <th class="px-5 py-3">Fasilitas</th>
                                     <th class="px-5 py-3">Waktu</th>
                                     <th class="px-5 py-3 text-right">Durasi</th>
                                 </tr>
                             </thead>
+                            <tbody id="masterTableBody" class="text-sm divide-y divide-slate-100 bg-white">
+                                <!-- Data Master -->
+                            </tbody>
                         </table>
-                        <div class="flex-grow overflow-y-auto custom-scrollbar relative">
-                            <table class="w-full text-left border-collapse whitespace-nowrap">
-                                <tbody id="masterTableBody" class="text-sm divide-y divide-slate-100">
-                                    <!-- Log Historis Master -->
-                                </tbody>
-                            </table>
-                            <div id="masterEmptyState" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 bg-white/80 z-10 hidden">
-                                <i class="fa-solid fa-box-open text-4xl mb-3 text-slate-300"></i>
-                                <p class="font-bold text-sm">Tidak ada data di rentang waktu ini.</p>
-                            </div>
-                        </div>
                     </div>
                 </section>
             </div>
+
+            <!-- ================= TAB 3: USERS ================= -->
+            <div id="view-users" class="hidden flex-col lg:grid lg:grid-cols-12 lg:grid-rows-[auto_1fr] gap-4 lg:gap-6 h-full fade-in overflow-y-auto lg:overflow-hidden">
+                
+                <section class="lg:col-span-4 flex flex-col gap-4 shrink-0">
+                    <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+                        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-user-plus text-indigo-500"></i> Tambah User Manual
+                        </h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">ID / NIK</label>
+                                <input type="text" id="newMpId" placeholder="Contoh: MP-011" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:border-indigo-500 uppercase">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nama Lengkap</label>
+                                <input type="text" id="newMpName" placeholder="Contoh: Budi Surya" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Asal Line</label>
+                                <input type="text" id="newMpLine" placeholder="Contoh: PP" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:border-indigo-500 uppercase">
+                            </div>
+                            <button onclick="saveNewUser()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl transition shadow flex justify-center items-center gap-2 mt-2">
+                                <i class="fa-solid fa-floppy-disk"></i> Simpan User
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-indigo-900 rounded-3xl p-6 border border-indigo-800 shadow-sm text-white relative overflow-hidden">
+                        <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white opacity-5 rounded-full blur-2xl"></div>
+                        <h3 class="text-sm font-bold uppercase tracking-wider mb-2 flex items-center gap-2 text-indigo-200">
+                            <i class="fa-solid fa-file-arrow-up"></i> Upload Data (Excel)
+                        </h3>
+                        <p class="text-xs text-indigo-300 mb-4 leading-relaxed">Format kolom Excel: <b>ID, NAMA, LINE</b>.</p>
+                        <div class="flex flex-col gap-2">
+                            <button onclick="downloadTemplate()" class="w-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-2 rounded-xl border border-white/20 transition text-center">
+                                Download Template
+                            </button>
+                            <label class="w-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-xl transition shadow text-center cursor-pointer">
+                                <span><i class="fa-solid fa-upload"></i> Pilih File Excel</span>
+                                <input type="file" id="excelUpload" accept=".xlsx, .xls" class="hidden" onchange="handleExcelUpload(event)">
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="lg:col-span-8 bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
+                        <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-users text-blue-500"></i> Daftar Users / Manpower
+                        </h2>
+                        <div class="text-xs font-bold bg-blue-50 text-blue-600 px-3 py-1 rounded-lg border border-blue-100">
+                            Total: <span id="totalUsersBadge">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-grow overflow-y-auto custom-scrollbar relative">
+                        <table class="w-full text-left border-collapse whitespace-nowrap">
+                            <thead class="sticky top-0 bg-slate-100 shadow-sm z-10">
+                                <tr class="text-slate-500 text-[11px] uppercase tracking-wider font-extrabold border-b border-slate-200">
+                                    <th class="px-5 py-3">ID / NIK</th>
+                                    <th class="px-5 py-3">Nama Lengkap</th>
+                                    <th class="px-5 py-3">Asal Line</th>
+                                    <th class="px-5 py-3 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody" class="text-sm divide-y divide-slate-100 bg-white">
+                                <!-- Data Users -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
         </main>
     </div>
 
-    <!-- Modal Cancel Transaksi (Pembatalan Log Harian) -->
-    <div id="cancelModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 transition-opacity">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 m-4 text-center border border-slate-100">
-            <div class="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-red-100 shadow-sm">
-                <i class="fa-solid fa-trash-can text-2xl"></i>
+    <!-- ================= MODALS ================= -->
+    <!-- Modal Cancel -->
+    <div id="cancelModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 m-4 text-center border border-slate-200">
+            <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
             </div>
-            <h3 class="text-xl font-extrabold text-slate-800">Batalkan Riwayat?</h3>
-            <p class="text-sm font-medium text-slate-500 mt-2 mb-8">Data transaksi peminjaman ini akan dihapus dari sistem harian secara permanen.</p>
-            <input type="hidden" id="cancelLogId">
-            <div class="flex justify-center gap-3">
-                <button onclick="closeCancelModal()" class="px-4 py-3 text-sm font-bold text-slate-600 bg-white border-2 border-slate-200 rounded-xl hover:bg-slate-50 transition w-full">Kembali</button>
-                <button onclick="processCancel()" class="px-4 py-3 text-sm font-bold text-white bg-red-600 border-2 border-red-600 rounded-xl hover:bg-red-700 hover:border-red-700 shadow-sm transition w-full">
-                    Ya, Hapus
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Tambah Master MP -->
-    <div id="addMpModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 transition-opacity">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 m-4 border border-slate-100 relative">
-            <button onclick="closeAddMpModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 transition-colors w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
-                <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
-            
-            <div class="flex items-center gap-4 mb-6">
-                <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center border border-indigo-100 shadow-sm shrink-0">
-                    <i class="fa-solid fa-user-plus text-xl"></i>
-                </div>
-                <div>
-                    <h3 class="text-xl font-extrabold text-slate-800 leading-tight">Tambah MP</h3>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Database Eksternal</p>
-                </div>
-            </div>
-            
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">ID Manpower / NIK</label>
-                    <input type="text" id="newMpId" placeholder="Contoh: MP-011" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 focus:bg-white uppercase transition-colors">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nama Lengkap</label>
-                    <input type="text" id="newMpName" placeholder="Contoh: Budi Surya" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 focus:bg-white transition-colors">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Asal Line</label>
-                    <select id="newMpLine" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 focus:bg-white transition-colors">
-                        <option value="PP">Line PP</option>
-                        <option value="HA">Line HA</option>
-                        <option value="ENG">Engineering</option>
-                        <option value="QA">Quality Assurance</option>
-                        <option value="OTHER">Lainnya</option>
-                    </select>
-                </div>
-                <button onclick="saveNewManpower()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition shadow-md flex justify-center items-center gap-2 mt-4">
-                    <i class="fa-solid fa-floppy-disk"></i> Simpan Data MP
-                </button>
-                <p id="mpSaveStatus" class="text-xs font-bold text-center mt-2 hidden"></p>
+            <h3 class="text-lg font-bold text-slate-800">Batalkan Transaksi?</h3>
+            <p class="text-sm text-slate-500 mt-2 mb-6">Data riwayat ini akan dihapus permanen dari sistem.</p>
+            <input type="hidden" id="cancelDocId">
+            <div class="flex gap-3">
+                <button onclick="closeCancelModal()" class="flex-1 px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition">Kembali</button>
+                <button onclick="confirmCancelHistory()" class="flex-1 px-4 py-2 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition">Ya, Hapus</button>
             </div>
         </div>
     </div>
 
-    <!-- Referensi ke static database jika ada -->
-    <script src="database-mp.js"></script>
+    <!-- Modal Hapus MP -->
+    <div id="deleteMpModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 m-4 text-center border border-slate-200">
+            <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-user-xmark text-2xl"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800">Hapus User?</h3>
+            <p class="text-sm text-slate-500 mt-2 mb-6">Pengguna <strong id="delMpName" class="text-slate-700"></strong> akan dihapus dari database.</p>
+            <input type="hidden" id="delMpDocId">
+            <div class="flex gap-3">
+                <button onclick="closeDeleteMpModal()" class="flex-1 px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition">Batal</button>
+                <button onclick="confirmDeleteMp()" class="flex-1 px-4 py-2 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition">Ya, Hapus</button>
+            </div>
+        </div>
+    </div>
 
-    <!-- FIREBASE MODULE -->
+    <!-- Modal Tambah Line -->
+    <div id="addLineModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 m-4 border border-slate-200">
+            <h3 class="text-lg font-bold text-slate-800 mb-4">Tambah Area / Line Baru</h3>
+            <input type="text" id="newLineInput" placeholder="Contoh: Assembly, QC, Gudang..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-500 mb-5 uppercase">
+            <div class="flex gap-3">
+                <button onclick="closeAddLineModal()" class="flex-1 px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition">Batal</button>
+                <button onclick="processAddLine()" class="flex-1 px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition">Buat Area</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= FIREBASE MODULE (REALTIME) ================= -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDocs, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // KONFIGURASI API FIREBASE SESUAI PERMINTAAN
-        const appId = 'toilet-card-app';
         const firebaseConfig = {
             apiKey: "AIzaSyAL8cb7HT3L09w7P5UnxsYJDa-P941qAKY",
             authDomain: "etc-manage.firebaseapp.com",
@@ -369,250 +403,295 @@
             messagingSenderId: "795178973088",
             appId: "1:795178973088:web:ddb143e3a3a4635f2696c5"
         };
+        const appId = 'toilet-card-app';
 
         let db, auth, currentUser;
-        const statusDot = document.getElementById('cloudStatus');
+        
+        // Memori Global Cerdas (Sinkron Otomatis)
+        window.cloudLines = [];
+        window.cloudKeys = [];
+        window.cloudUsers = [];
+        window.cloudHistory = [];
+        window.isLoadingLines = true; // State Loading untuk Skeleton ID Card
+
+        const dot = document.getElementById('cloudDot');
+        const txt = document.getElementById('cloudText');
 
         try {
             const app = initializeApp(firebaseConfig);
             db = getFirestore(app);
             auth = getAuth(app);
-            
-            const initAuth = async () => {
-                try {
-                    await signInAnonymously(auth);
-                } catch(e) { console.warn("Auth Fallback", e); }
-            };
-
-            initAuth();
+            signInAnonymously(auth);
 
             onAuthStateChanged(auth, (user) => {
                 if(user) {
                     currentUser = user;
-                    statusDot.classList.replace('bg-slate-300', 'bg-emerald-400');
-                    statusDot.title = "Cloud Connected";
-                    
-                    window.firebaseDb = db;
-                    window.firebaseAppId = appId;
-                    window.fetchCustomManpowerFirebase();
+                    dot.classList.replace('bg-slate-300', 'bg-emerald-500');
+                    if(txt) {
+                        txt.innerText = "Sync Active";
+                        txt.classList.replace('text-slate-500', 'text-emerald-600');
+                    }
+                    setupRealtimeListeners();
                 } else {
-                    statusDot.classList.replace('bg-emerald-400', 'bg-amber-400');
+                    if(txt) txt.innerText = "Offline";
+                    dot.classList.replace('bg-emerald-500', 'bg-red-500');
                 }
             });
+        } catch (e) { console.error("Firebase Error", e); }
 
-        } catch (e) {
-            console.warn("Firebase Offline Mode.", e);
-            statusDot.classList.replace('bg-slate-300', 'bg-red-400');
+        function setupRealtimeListeners() {
+            const linesRef = collection(db, 'artifacts', appId, 'public', 'data', 'appLines');
+            onSnapshot(linesRef, (snap) => {
+                window.isLoadingLines = false;
+                window.cloudLines = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
+                if(window.cloudLines.length === 0) {
+                    window.fbAddLine('PP', 'Line PP');
+                    window.fbAddLine('HA', 'Line HA');
+                    window.fbAddLine('STAFF', 'Staff');
+                }
+                if(typeof window.renderLogin === 'function') window.renderLogin();
+            });
+
+            const keysRef = collection(db, 'artifacts', appId, 'public', 'data', 'appKeys');
+            onSnapshot(keysRef, (snap) => {
+                window.cloudKeys = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
+                if(window.currentLineId && typeof window.renderBeranda === 'function') window.renderBeranda();
+            });
+
+            const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'appUsers');
+            onSnapshot(usersRef, (snap) => {
+                window.cloudUsers = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
+                if(window.currentLineId && typeof window.renderUsers === 'function') window.renderUsers();
+            });
+
+            const histRef = collection(db, 'artifacts', appId, 'public', 'data', 'appHistory');
+            onSnapshot(histRef, (snap) => {
+                window.cloudHistory = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
+                if(window.currentLineId) {
+                    if(typeof window.renderBeranda === 'function') window.renderBeranda();
+                    if(typeof window.renderResume === 'function') window.renderResume();
+                }
+            });
         }
 
-        window.saveBucketFirebase = async function(bucketData) {
-            if (!window.firebaseDb || !currentUser) return false;
-            try {
-                const colRef = collection(window.firebaseDb, 'artifacts', window.firebaseAppId, 'public', 'data', 'dailyBuckets');
-                await addDoc(colRef, bucketData);
-                return true;
-            } catch (e) { console.error("Firebase Bucket Save Error", e); return false; }
+        window.fbAddLine = async function(id, name) {
+            if(!currentUser) return;
+            const docId = `line_${id.toUpperCase()}`;
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appLines', docId), { id: id.toUpperCase(), name });
+            setTimeout(() => {
+                window.fbAddKey(id.toUpperCase(), "Kunci 1");
+                window.fbAddKey(id.toUpperCase(), "Kunci 2");
+            }, 500);
         };
 
-        window.saveCustomMPFirebase = async function(mpData) {
-            if (!window.firebaseDb || !currentUser) return false;
-            try {
-                const colRef = collection(window.firebaseDb, 'artifacts', window.firebaseAppId, 'public', 'data', 'customManpower');
-                await setDoc(doc(colRef, mpData.id), mpData);
-                return true;
-            } catch (e) { console.error("Firebase MP Save Error", e); return false; }
+        window.fbAddKey = async function(lineId, keyName) {
+            if(!currentUser) return;
+            const docId = `${lineId}_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appKeys', docId), {
+                keyId: Date.now().toString(), lineId, name: keyName, isOccupied: false, user: null, startTime: null
+            });
         };
 
-        window.fetchCustomManpowerFirebase = async function() {
-            if (!window.firebaseDb || !currentUser) return;
-            try {
-                const colRef = collection(window.firebaseDb, 'artifacts', window.firebaseAppId, 'public', 'data', 'customManpower');
-                const snapshot = await getDocs(colRef);
-                const fetchedMPs = [];
-                snapshot.forEach(doc => fetchedMPs.push(doc.data()));
-                
-                const existingLocal = JSON.parse(localStorage.getItem('customManpowerBento')) || [];
-                const merged = [...existingLocal];
-                fetchedMPs.forEach(f => {
-                    if(!merged.find(m => m.id === f.id)) merged.push(f);
-                });
-                localStorage.setItem('customManpowerBento', JSON.stringify(merged));
-                window.refreshGlobalMPList();
-            } catch (e) { console.error("Fetch MP Error", e); }
+        window.fbUpdateKey = async function(docId, updateData) {
+            if(!currentUser) return;
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appKeys', docId), updateData, { merge: true });
+        };
+
+        window.fbDeleteKey = async function(docId) {
+            if(!currentUser) return;
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appKeys', docId));
+        };
+
+        window.fbAddUser = async function(userObj) {
+            if(!currentUser) return;
+            const docId = `usr_${userObj.id}`;
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appUsers', docId), userObj);
+        };
+
+        window.fbDeleteUser = async function(docId) {
+            if(!currentUser) return;
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appUsers', docId));
+        };
+
+        window.fbAddHistory = async function(logObj) {
+            if(!currentUser) return;
+            const docId = `log_${Date.now()}`;
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appHistory', docId), logObj);
+        };
+
+        window.fbDeleteHistory = async function(docId) {
+            if(!currentUser) return;
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appHistory', docId));
+        };
+
+        window.fbBatchAddUsers = async function(usersArray) {
+            if(!currentUser) return;
+            for(const u of usersArray) {
+                const docId = `usr_${u.id}`;
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appUsers', docId), u);
+            }
         };
     </script>
 
-    <!-- CORE LOGIC APP -->
+    <!-- ================= APPLICATION LOGIC ================= -->
     <script>
-        // --- 1. STATE & INITIALIZATION ---
-        const baseStaticMP = typeof dbManpower !== 'undefined' ? dbManpower : [];
-        let globalMPList = [];
-        
-        window.refreshGlobalMPList = function() {
-            const customMPs = JSON.parse(localStorage.getItem('customManpowerBento')) || [];
-            globalMPList = [...baseStaticMP, ...customMPs];
-        };
-        window.refreshGlobalMPList();
-
-        let currentRole = localStorage.getItem('toiletRoleBento') || null;
-        
-        const defaultKeys = [
-            { id: 'pp1', line: 'PP', name: 'Kunci 1', isOccupied: false, user: null, startTime: null },
-            { id: 'pp2', line: 'PP', name: 'Kunci 2', isOccupied: false, user: null, startTime: null },
-            { id: 'ha1', line: 'HA', name: 'Kunci 1', isOccupied: false, user: null, startTime: null },
-            { id: 'ha2', line: 'HA', name: 'Kunci 2', isOccupied: false, user: null, startTime: null },
-        ];
-
-        let keysData = JSON.parse(localStorage.getItem('toiletKeysBento')) || defaultKeys;
-        let historyLogsLive = JSON.parse(localStorage.getItem('toiletHistoryLiveBento')) || [];
-        let masterHistory = JSON.parse(localStorage.getItem('toiletMasterHistoryBento')) || [];
+        window.currentLineId = null;
+        window.isLoadingLines = true; // Inisialisasi awal skeleton
 
         function initApp() {
-            if (currentRole) {
+            setQuickFilter('week'); 
+            if(window.currentLineId) {
                 document.getElementById('loginView').classList.add('hidden');
                 document.getElementById('dashboardView').classList.remove('hidden');
                 document.getElementById('dashboardView').classList.add('flex');
-                
-                const headerTitle = document.getElementById('headerTitle');
-                const headerIcon = document.getElementById('headerIcon');
-                document.getElementById('statLineName').innerText = currentRole;
-                
-                if (currentRole === 'PP') {
-                    headerTitle.innerHTML = `Area <span class="text-blue-600">PP</span>`;
-                    headerIcon.className = "w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-md bg-gradient-to-br from-blue-500 to-blue-600";
-                    headerIcon.innerHTML = `<i class="fa-solid fa-users-gear"></i>`;
-                } else {
-                    headerTitle.innerHTML = `Area <span class="text-purple-600">HA</span>`;
-                    headerIcon.className = "w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-md bg-gradient-to-br from-purple-500 to-purple-600";
-                    headerIcon.innerHTML = `<i class="fa-solid fa-user-astronaut"></i>`;
-                }
-                
-                checkShiftBoundary();
-                renderLiveDashboard();
+                document.getElementById('headerLineName').innerText = window.currentLineId;
+                switchTab('beranda');
             } else {
-                document.getElementById('loginView').classList.remove('hidden');
-                document.getElementById('dashboardView').classList.add('hidden');
-                document.getElementById('dashboardView').classList.remove('flex');
+                renderLogin();
             }
         }
 
-        function login(role) {
-            currentRole = role;
-            localStorage.setItem('toiletRoleBento', role);
-            initApp();
+        function loginLine(lineId) {
+            window.currentLineId = lineId;
+            document.getElementById('loginView').classList.add('hidden');
+            document.getElementById('dashboardView').classList.remove('hidden');
+            document.getElementById('dashboardView').classList.add('flex');
+            document.getElementById('headerLineName').innerText = lineId;
+            switchTab('beranda');
         }
 
         function logout() {
-            currentRole = null;
-            localStorage.removeItem('toiletRoleBento');
-            initApp();
+            window.currentLineId = null;
+            document.getElementById('dashboardView').classList.add('hidden');
+            document.getElementById('dashboardView').classList.remove('flex');
+            document.getElementById('loginView').classList.remove('hidden');
         }
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`tabBtn-${tabId}`).classList.add('active');
             
-            document.getElementById('view-live').classList.add('hidden');
-            document.getElementById('view-master').classList.add('hidden');
-            document.getElementById('view-live').classList.remove('flex', 'lg:grid');
-            document.getElementById('view-master').classList.remove('flex', 'lg:grid');
+            ['beranda', 'resume', 'users'].forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                el.classList.add('hidden');
+                el.classList.remove('flex', 'lg:grid');
+            });
             
-            if(tabId === 'live') {
-                document.getElementById('view-live').classList.remove('hidden');
-                document.getElementById('view-live').classList.add('flex', 'lg:grid');
-                renderLiveDashboard();
-            } else {
-                document.getElementById('view-master').classList.remove('hidden');
-                document.getElementById('view-master').classList.add('flex', 'lg:grid');
-                setDefaultFilterDates();
-                applyMasterFilter();
-            }
+            const target = document.getElementById(`view-${tabId}`);
+            target.classList.remove('hidden');
+            target.classList.add('flex', 'lg:grid');
+
+            if(tabId === 'beranda') window.renderBeranda();
+            if(tabId === 'resume') window.renderResume();
+            if(tabId === 'users') window.renderUsers();
         }
 
-        function saveDataLive() {
-            localStorage.setItem('toiletKeysBento', JSON.stringify(keysData));
-            localStorage.setItem('toiletHistoryLiveBento', JSON.stringify(historyLogsLive));
-        }
-
-        // --- 2. SHIFT & AUTO-RESET LOGIC ---
-        function getShiftInfo() {
-            const now = new Date();
-            const h = now.getHours();
-            const dateStr = now.toLocaleDateString('en-CA'); 
+        // ================= RENDER LOGIN (LANYARD CARDS) =================
+        window.renderLogin = function() {
+            const grid = document.getElementById('linesGrid');
+            grid.innerHTML = '';
             
-            if (h >= 7 && h < 20) {
-                return { id: dateStr + "_DAY", name: "SHIFT PAGI" };
-            } else {
-                if (h < 7) {
-                    const prev = new Date(now);
-                    prev.setDate(prev.getDate() - 1);
-                    return { id: prev.toLocaleDateString('en-CA') + "_NIGHT", name: "SHIFT MALAM" };
+            // Tampilan Loading Skeleton
+            if (window.isLoadingLines) {
+                for(let i=0; i<3; i++) {
+                    grid.innerHTML += `
+                    <div class="flex flex-col items-center animate-pulse mt-1">
+                        <div class="w-3 h-16 bg-slate-300 shadow-inner"></div>
+                        <div class="w-44 bg-white rounded-2xl shadow-sm border border-slate-200 relative flex flex-col items-center pt-3 pb-6 px-4">
+                            <div class="w-8 h-1.5 bg-slate-200 rounded-full mb-5 shadow-inner"></div>
+                            <div class="w-16 h-16 rounded-full bg-slate-200 mb-4"></div>
+                            <div class="w-20 h-5 bg-slate-200 rounded mb-2"></div>
+                            <div class="w-24 h-3 bg-slate-200 rounded mb-5"></div>
+                            <div class="w-32 h-6 bg-slate-200 rounded opacity-40 mt-2"></div>
+                        </div>
+                    </div>`;
                 }
-                return { id: dateStr + "_NIGHT", name: "SHIFT MALAM" };
+                return;
             }
-        }
 
-        function checkShiftBoundary() {
-            const currentShift = getShiftInfo();
-            const lastShiftId = localStorage.getItem('lastShiftIdBento');
+            let lines = [...(window.cloudLines || [])];
+            // Sort PP selalu di kiri
+            lines.sort((a,b) => {
+                if(a.id === 'PP') return -1;
+                if(b.id === 'PP') return 1;
+                return 0;
+            });
 
-            if (lastShiftId && lastShiftId !== currentShift.id) {
-                triggerShiftReset(lastShiftId);
-            }
-            localStorage.setItem('lastShiftIdBento', currentShift.id);
-        }
+            // Palet warna lanyard & kartu
+            const colorPalette = [
+                { bg: 'bg-blue-500', text: 'text-blue-600', light: 'bg-blue-50', border: 'border-blue-500', icon: 'fa-layer-group' },
+                { bg: 'bg-purple-500', text: 'text-purple-600', light: 'bg-purple-50', border: 'border-purple-500', icon: 'fa-boxes-stacked' },
+                { bg: 'bg-emerald-500', text: 'text-emerald-600', light: 'bg-emerald-50', border: 'border-emerald-500', icon: 'fa-user-tie' },
+                { bg: 'bg-amber-500', text: 'text-amber-600', light: 'bg-amber-50', border: 'border-amber-500', icon: 'fa-helmet-safety' },
+                { bg: 'bg-rose-500', text: 'text-rose-600', light: 'bg-rose-50', border: 'border-rose-500', icon: 'fa-building' },
+                { bg: 'bg-cyan-500', text: 'text-cyan-600', light: 'bg-cyan-50', border: 'border-cyan-500', icon: 'fa-microchip' }
+            ];
 
-        function triggerShiftReset(completedShiftId) {
-            if (historyLogsLive.length > 0) {
-                const bucket = {
-                    bucketId: completedShiftId + "_" + Date.now(),
-                    shiftId: completedShiftId,
-                    timestamp: new Date().toISOString(),
-                    logs: [...historyLogsLive]
-                };
-
-                masterHistory.push(bucket);
-                localStorage.setItem('toiletMasterHistoryBento', JSON.stringify(masterHistory));
-
-                if (window.saveBucketFirebase) {
-                    window.saveBucketFirebase(bucket);
-                }
-            }
+            lines.forEach((l, index) => {
+                const color = colorPalette[index % colorPalette.length];
+                grid.innerHTML += `
+                    <div onclick="loginLine('${l.id}')" class="flex flex-col items-center group cursor-pointer hover:-translate-y-3 transition-transform duration-300 mt-1">
+                        <!-- Lanyard Strap -->
+                        <div class="w-3 h-16 ${color.bg} shadow-inner border-x border-black/10"></div>
+                        <!-- ID Card Box -->
+                        <div class="w-44 bg-white rounded-2xl shadow-lg border-b-4 ${color.border} relative flex flex-col items-center pt-3 pb-6 px-4 hover:shadow-2xl transition-shadow">
+                            <!-- Gantungan Klip -->
+                            <div class="w-8 h-1.5 bg-slate-200 rounded-full mb-5 shadow-inner border border-slate-300"></div>
+                            
+                            <div class="w-16 h-16 ${color.light} ${color.text} rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-100 relative overflow-hidden">
+                                <div class="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                                <i class="fa-solid ${color.icon} text-2xl relative z-10"></i>
+                            </div>
+                            
+                            <h3 class="font-extrabold text-slate-800 text-xl tracking-tight mb-1 uppercase">${l.id}</h3>
+                            <p class="text-[11px] text-slate-500 font-bold truncate w-full text-center tracking-wider uppercase">${l.name}</p>
+                            
+                            <!-- Hiasan Barcode Bawah -->
+                            <div class="mt-5 flex gap-0.5 justify-center opacity-30 h-6">
+                                <div class="w-1 bg-slate-800"></div><div class="w-0.5 bg-slate-800"></div><div class="w-1.5 bg-slate-800"></div>
+                                <div class="w-0.5 bg-slate-800"></div><div class="w-1 bg-slate-800"></div><div class="w-1 bg-slate-800"></div>
+                                <div class="w-0.5 bg-slate-800"></div><div class="w-1.5 bg-slate-800"></div><div class="w-1 bg-slate-800"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
             
-            historyLogsLive = [];
-            saveDataLive();
-            if(!document.getElementById('view-live').classList.contains('hidden')) {
-                renderLiveDashboard();
-            }
+            // Kartu Tambah Line (Garis Putus-putus)
+            grid.innerHTML += `
+                <div onclick="openAddLineModal()" class="flex flex-col items-center group cursor-pointer hover:-translate-y-3 transition-transform duration-300 opacity-80 hover:opacity-100 mt-1">
+                    <div class="w-3 h-16 bg-slate-200 border-x border-slate-300 border-dashed"></div>
+                    <div class="w-44 h-[250px] bg-slate-50 rounded-2xl shadow-sm border-2 border-dashed border-slate-300 relative flex flex-col items-center justify-center p-4 hover:border-indigo-400 hover:bg-indigo-50 transition-colors">
+                        <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-slate-400 group-hover:text-indigo-500 mb-3 shadow-sm border border-slate-200">
+                            <i class="fa-solid fa-plus text-xl"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-500 group-hover:text-indigo-600 text-xs text-center uppercase tracking-wide">Tambah Area</h3>
+                    </div>
+                </div>
+            `;
         }
 
-        // --- 3. LIVE DASHBOARD (HARIAN) ---
-        function calculateDurationObj(start, end) {
-            const diff = new Date(end) - new Date(start);
-            const totalSec = Math.floor(diff / 1000);
-            const m = Math.floor(totalSec / 60);
-            const s = Math.floor(totalSec % 60);
-            return { string: m > 0 ? `${m}m ${s}s` : `${s}s`, seconds: totalSec };
-        }
-
-        function renderLiveDashboard() {
-            const lineKeys = keysData.filter(k => k.line === currentRole);
+        // ================= RENDER BERANDA =================
+        window.renderBeranda = function() {
+            if(!window.currentLineId) return;
+            
+            const lineKeys = (window.cloudKeys || []).filter(k => k.lineId === window.currentLineId);
             const availableKeys = lineKeys.filter(k => !k.isOccupied);
             
             const input = document.getElementById('bigInput');
-            const statusBadge = document.getElementById('keyStatusBadge');
+            const badge = document.getElementById('keyStatusBadge');
 
-            if (availableKeys.length === 0) {
+            if (lineKeys.length > 0 && availableKeys.length === 0) {
                 input.disabled = true;
                 input.value = '';
                 input.placeholder = "Semua kunci terpakai!";
-                statusBadge.className = "px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border bg-red-50 text-red-600 border-red-200";
-                statusBadge.innerHTML = `<i class="fa-solid fa-ban"></i> Habis (0/2)`;
+                badge.className = "px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 border bg-red-50 text-red-600 border-red-200";
+                badge.innerHTML = `<i class="fa-solid fa-ban"></i> Habis (0/${lineKeys.length})`;
             } else {
                 input.disabled = false;
                 input.placeholder = "Ketik ID / Nama MP lalu Enter...";
-                statusBadge.className = "px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border bg-emerald-50 text-emerald-600 border-emerald-200";
-                statusBadge.innerHTML = `<i class="fa-solid fa-check"></i> Sisa: ${availableKeys.length}/2`;
+                badge.className = "px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 border bg-emerald-50 text-emerald-600 border-emerald-200";
+                badge.innerHTML = `<i class="fa-solid fa-check"></i> Sisa: ${availableKeys.length}/${lineKeys.length}`;
             }
 
             const container = document.getElementById('activeCardsContainer');
@@ -631,14 +710,17 @@
                         </div>
                         <div class="flex items-center justify-between border-t border-slate-100 pt-3 mt-1">
                             <span class="live-duration text-sm font-extrabold text-amber-600 bg-amber-50 px-3 py-1 rounded-lg transition-colors" data-start="${k.startTime}">0s</span>
-                            <button onclick="returnKey('${k.id}')" data-start="${k.startTime}" class="btn-selesai px-5 py-2 text-white text-sm font-bold rounded-xl shadow-sm transition-all">
-                                Tunggu...
+                            <button id="btnReturn_${k.docId}" onclick="returnKey('${k.docId}')" class="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl shadow-sm transition-all">
+                                Selesai
                             </button>
                         </div>
                     `;
                 } else {
-                    card.className = "bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-4 flex flex-col justify-center items-center h-[120px] text-slate-400";
+                    card.className = "group relative bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-4 flex flex-col justify-center items-center h-[120px] text-slate-400 hover:border-slate-300 transition-colors";
                     card.innerHTML = `
+                        <button onclick="deleteKey('${k.docId}')" class="absolute top-2 right-2 w-7 h-7 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg flex items-center justify-center transition-opacity border border-red-100 opacity-0 group-hover:opacity-100" title="Hapus Kunci">
+                            <i class="fa-solid fa-trash-can text-[10px]"></i>
+                        </button>
                         <i class="fa-solid fa-door-open text-2xl mb-2 opacity-50"></i>
                         <span class="text-sm font-bold">${k.name} Tersedia</span>
                     `;
@@ -646,18 +728,154 @@
                 container.appendChild(card);
             });
 
-            renderLiveHistoryAndStats();
+            // Render History & Stats for Today
+            const todayStr = new Date().toLocaleDateString('id-ID');
+            const todayLogs = (window.cloudHistory || []).filter(h => 
+                h.facilityLine === window.currentLineId && 
+                new Date(h.timestamp).toLocaleDateString('id-ID') === todayStr
+            );
+            
+            const tbody = document.getElementById('historyTableBody');
+            tbody.innerHTML = '';
+            
+            let longestSec = 0, longestMP = '-', mpFreq = {}, lineMap = {};
+
+            todayLogs.sort((a,b) => new Date(b.endTime) - new Date(a.endTime)).forEach(log => {
+                if(log.durationSec > longestSec) { longestSec = log.durationSec; longestMP = log.mpName; }
+                const mpKey = log.mpName;
+                mpFreq[mpKey] = (mpFreq[mpKey] || 0) + 1;
+                const lLine = log.mpLine;
+                if(lLine && lLine !== 'Unknown') lineMap[lLine] = (lineMap[lLine] || 0) + 1;
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition-colors history-row';
+                tr.oncontextmenu = function(e) { e.preventDefault(); openCancelModal(log.docId); };
+                tr.innerHTML = `
+                    <td class="px-5 py-3">
+                        <div class="font-bold text-slate-700 text-xs">${log.mpName}</div>
+                        <div class="text-[10px] text-slate-400 font-medium">${log.mpId} • ${log.mpLine}</div>
+                    </td>
+                    <td class="px-5 py-3"><span class="text-xs font-bold text-slate-600">${log.keyName}</span></td>
+                    <td class="px-5 py-3 font-medium text-slate-500 text-[11px]">
+                        ${new Date(log.startTime).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})} - 
+                        ${new Date(log.endTime).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        <span class="inline-block px-2 py-1 bg-white border border-slate-200 text-emerald-600 rounded-lg text-xs font-bold shadow-sm">${log.durationStr}</span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Update Stats Beranda
+            const topFreqMP = Object.keys(mpFreq).length ? Object.keys(mpFreq).reduce((a, b) => mpFreq[a] > mpFreq[b] ? a : b) : '-';
+            const topLine = Object.keys(lineMap).length ? Object.keys(lineMap).reduce((a, b) => lineMap[a] > lineMap[b] ? a : b) : '-';
+            
+            document.getElementById('statTodayCount').innerText = todayLogs.length;
+            document.getElementById('statFreqMP').innerText = topFreqMP;
+            document.getElementById('statFreqVal').innerText = topFreqMP !== '-' ? `${mpFreq[topFreqMP]} Kali` : '';
+            document.getElementById('statLongestMP').innerText = longestMP;
+            document.getElementById('statLongestVal').innerText = longestSec > 0 ? `${Math.floor(longestSec/60)}m ${longestSec%60}s` : '';
+            document.getElementById('statActiveLine').innerText = topLine !== '-' ? `Line ${topLine}` : '-';
         }
 
-        function handleInput(e) {
-            const input = document.getElementById('bigInput');
-            const val = input.value.trim().toLowerCase();
+        // ================= RENDER RESUME =================
+        window.renderResume = function() {
+            if(!window.currentLineId) return;
+            const startStr = document.getElementById('filterStart').value;
+            const endStr = document.getElementById('filterEnd').value;
+            if(!startStr || !endStr) return;
+
+            const dStart = new Date(startStr); dStart.setHours(0,0,0,0);
+            const dEnd = new Date(endStr); dEnd.setHours(23,59,59,999);
+
+            const logs = (window.cloudHistory || []).filter(h => {
+                const hTime = new Date(h.timestamp);
+                return h.facilityLine === window.currentLineId && hTime >= dStart && hTime <= dEnd;
+            });
+
+            const tbody = document.getElementById('masterTableBody');
+            tbody.innerHTML = '';
+
+            let longestSec = 0, longestMP = '-', mpFreq = {}, lineMap = {};
+
+            logs.sort((a,b) => new Date(b.endTime) - new Date(a.endTime)).forEach(log => {
+                if(log.durationSec > longestSec) { longestSec = log.durationSec; longestMP = log.mpName; }
+                const mpKey = log.mpName;
+                mpFreq[mpKey] = (mpFreq[mpKey] || 0) + 1;
+                const lLine = log.mpLine;
+                if(lLine && lLine !== 'Unknown') lineMap[lLine] = (lineMap[lLine] || 0) + 1;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="px-5 py-3 border-b border-slate-100">
+                        <div class="text-xs font-bold text-slate-700">${new Date(log.endTime).toLocaleDateString('id-ID')}</div>
+                    </td>
+                    <td class="px-5 py-3 border-b border-slate-100">
+                        <div class="text-xs font-bold text-slate-800">${log.mpName}</div>
+                        <div class="text-[10px] font-semibold text-slate-400">${log.mpId} • Line ${log.mpLine}</div>
+                    </td>
+                    <td class="px-5 py-3 border-b border-slate-100"><span class="text-xs font-bold text-slate-600">${log.keyName}</span></td>
+                    <td class="px-5 py-3 border-b border-slate-100 text-[11px] font-medium text-slate-500">
+                        ${new Date(log.startTime).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})} - 
+                        ${new Date(log.endTime).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}
+                    </td>
+                    <td class="px-5 py-3 border-b border-slate-100 text-right">
+                        <span class="text-xs font-bold text-emerald-600">${log.durationStr}</span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Update Stats Resume
+            const topFreqMP = Object.keys(mpFreq).length ? Object.keys(mpFreq).reduce((a, b) => mpFreq[a] > mpFreq[b] ? a : b) : '-';
+            const topLine = Object.keys(lineMap).length ? Object.keys(lineMap).reduce((a, b) => lineMap[a] > lineMap[b] ? a : b) : '-';
+            
+            document.getElementById('masterTotal').innerText = logs.length;
+            document.getElementById('masterFreqMP').innerText = topFreqMP;
+            document.getElementById('masterFreqVal').innerText = topFreqMP !== '-' ? `${mpFreq[topFreqMP]} Kali` : '';
+            document.getElementById('masterLongestMP').innerText = longestMP;
+            document.getElementById('masterLongestVal').innerText = longestSec > 0 ? `${Math.floor(longestSec/60)}m ${longestSec%60}s` : '';
+            document.getElementById('masterActiveLine').innerText = topLine !== '-' ? `Line ${topLine}` : '-';
+        }
+
+        // ================= RENDER USERS =================
+        window.renderUsers = function() {
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = '';
+            
+            const users = window.cloudUsers || [];
+            document.getElementById('totalUsersBadge').innerText = users.length;
+            
+            users.sort((a,b) => a.name.localeCompare(b.name)).forEach(u => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="px-5 py-3 border-b border-slate-100 text-xs font-bold text-slate-600">${u.id}</td>
+                    <td class="px-5 py-3 border-b border-slate-100 text-sm font-bold text-slate-800">${u.name}</td>
+                    <td class="px-5 py-3 border-b border-slate-100">
+                        <span class="px-2.5 py-1 bg-slate-100 text-slate-600 rounded text-[10px] font-bold border border-slate-200">${u.line}</span>
+                    </td>
+                    <td class="px-5 py-3 border-b border-slate-100 text-right">
+                        <button onclick="openDeleteMpModal('${u.docId}', '${u.name}')" class="w-8 h-8 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg flex items-center justify-center transition border border-red-100 ml-auto">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ================= ACTIONS =================
+        window.handleInput = function(e) {
+            const val = document.getElementById('bigInput').value.trim().toLowerCase();
             const list = document.getElementById('autocompleteList');
             
             if (e.key === 'Enter') {
                 if (val !== '') {
-                    const found = globalMPList.find(m => m.id.toLowerCase() === val || m.name.toLowerCase().includes(val));
-                    borrowKey(found || { id: 'N/A', name: input.value.trim(), line: 'Unknown' });
+                    const found = window.cloudUsers.find(m => m.id.toLowerCase() === val || m.name.toLowerCase().includes(val));
+                    borrowKey(found || { id: 'N/A', name: document.getElementById('bigInput').value.trim(), line: 'Unknown' });
                     list.classList.add('hidden');
                 }
                 return;
@@ -665,7 +883,7 @@
 
             if (!val) { list.classList.add('hidden'); return; }
 
-            const filtered = globalMPList.filter(mp => mp.name.toLowerCase().includes(val) || mp.id.toLowerCase().includes(val)).slice(0, 5);
+            const filtered = window.cloudUsers.filter(mp => mp.name.toLowerCase().includes(val) || mp.id.toLowerCase().includes(val)).slice(0, 5);
             list.innerHTML = '';
 
             if (filtered.length > 0) {
@@ -683,359 +901,249 @@
                     list.appendChild(li);
                 });
                 list.classList.remove('hidden');
-            } else {
-                list.classList.add('hidden');
-            }
+            } else { list.classList.add('hidden'); }
         }
 
         function borrowKey(mpObj) {
-            const lineKeys = keysData.filter(k => k.line === currentRole);
+            const lineKeys = (window.cloudKeys || []).filter(k => k.lineId === window.currentLineId);
             const availableKey = lineKeys.find(k => !k.isOccupied);
 
-            if (availableKey) {
-                const idx = keysData.findIndex(k => k.id === availableKey.id);
-                keysData[idx].isOccupied = true;
-                keysData[idx].user = mpObj; 
-                keysData[idx].startTime = new Date().toISOString();
-                
-                saveDataLive();
+            if (availableKey && window.fbUpdateKey) {
+                window.fbUpdateKey(availableKey.docId, {
+                    isOccupied: true,
+                    user: mpObj,
+                    startTime: new Date().toISOString()
+                });
                 document.getElementById('bigInput').value = '';
-                renderLiveDashboard();
             }
         }
 
-        function returnKey(keyId) {
-            const idx = keysData.findIndex(k => k.id === keyId);
-            if (idx !== -1) {
-                const k = keysData[idx];
+        window.addNewKey = function() {
+            if(!window.currentLineId || !window.fbAddKey) return;
+            const currentCount = window.cloudKeys.filter(k => k.lineId === window.currentLineId).length;
+            let newNum = currentCount + 1;
+            window.fbAddKey(window.currentLineId, `Kunci ${newNum}`);
+        };
+
+        window.deleteKey = function(docId) {
+            if(!window.fbDeleteKey) return;
+            window.fbDeleteKey(docId);
+        };
+
+        window.returnKey = function(keyDocId) {
+            const k = window.cloudKeys.find(x => x.docId === keyDocId);
+            if(k && k.isOccupied && window.fbUpdateKey && window.fbAddHistory) {
                 const endTime = new Date().toISOString();
-                const durObj = calculateDurationObj(k.startTime, endTime);
-                
-                historyLogsLive.push({
-                    id: Date.now(),
-                    facilityLine: k.line,
+                const diff = new Date(endTime) - new Date(k.startTime);
+                const totalSec = Math.floor(diff / 1000);
+                const m = Math.floor(totalSec / 60);
+                const s = Math.floor(totalSec % 60);
+                const durStr = m > 0 ? `${m}m ${s}s` : `${s}s`;
+
+                window.fbAddHistory({
+                    facilityLine: k.lineId,
                     keyName: k.name,
                     mpId: k.user.id,
                     mpName: k.user.name,
                     mpLine: k.user.line,
                     startTime: k.startTime,
                     endTime: endTime,
-                    durationStr: durObj.string,
-                    durationSec: durObj.seconds
+                    durationSec: totalSec,
+                    durationStr: durStr,
+                    timestamp: endTime
                 });
 
-                keysData[idx].isOccupied = false;
-                keysData[idx].user = null;
-                keysData[idx].startTime = null;
-
-                saveDataLive();
-                renderLiveDashboard();
+                window.fbUpdateKey(keyDocId, {
+                    isOccupied: false,
+                    user: null,
+                    startTime: null
+                });
                 
                 setTimeout(() => {
                     const input = document.getElementById('bigInput');
-                    if(!input.disabled && !document.getElementById('view-live').classList.contains('hidden')) input.focus();
-                }, 50);
+                    if(!input.disabled && !document.getElementById('view-beranda').classList.contains('hidden')) input.focus();
+                }, 100);
             }
         }
 
-        function renderLiveHistoryAndStats() {
-            const tbody = document.getElementById('historyTableBody');
-            const emptyState = document.getElementById('emptyHistory');
-            tbody.innerHTML = '';
-            
-            const lineLogs = historyLogsLive.filter(log => log.facilityLine === currentRole);
-            
-            let longestSec = 0, longestMP = '-';
-            let freqMap = {}, lineMap = {};
-
-            if (lineLogs.length === 0) {
-                emptyState.classList.remove('hidden');
-            } else {
-                emptyState.classList.add('hidden');
-                const sortedLogs = [...lineLogs].reverse();
-                
-                sortedLogs.forEach(log => {
-                    if (log.durationSec > longestSec) {
-                        longestSec = log.durationSec;
-                        longestMP = log.mpName;
-                    }
-
-                    freqMap[log.mpName] = (freqMap[log.mpName] || 0) + 1;
-                    if(log.mpLine && log.mpLine !== 'Unknown' && log.mpLine !== 'N/A') {
-                        lineMap[log.mpLine] = (lineMap[log.mpLine] || 0) + 1;
-                    }
-
-                    const tr = document.createElement('tr');
-                    tr.className = 'hover:bg-red-50 transition-colors cursor-context-menu group relative';
-                    tr.title = "Klik Kanan untuk membatalkan transaksi ini";
-                    
-                    tr.addEventListener('contextmenu', (e) => {
-                        e.preventDefault();
-                        openCancelModal(log.id);
-                    });
-                    
-                    tr.innerHTML = `
-                        <td class="px-5 py-3 relative">
-                            <div class="font-bold text-slate-700 text-xs">${log.mpName}</div>
-                            <div class="text-[10px] text-slate-400 font-medium">${log.mpId} • ${log.mpLine}</div>
-                            <div class="absolute left-0 top-0 bottom-0 w-1 bg-red-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        </td>
-                        <td class="px-5 py-3">
-                            <span class="text-xs font-bold text-slate-600">${log.keyName}</span>
-                        </td>
-                        <td class="px-5 py-3 font-medium text-slate-500 text-[11px]">
-                            ${new Date(log.startTime).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})} - 
-                            ${new Date(log.endTime).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}
-                        </td>
-                        <td class="px-5 py-3 text-right">
-                            <span class="inline-block px-2 py-1 bg-white border border-slate-200 text-emerald-600 rounded-lg text-xs font-bold shadow-sm group-hover:text-red-500 group-hover:border-red-200 transition-colors">
-                                ${log.durationStr}
-                            </span>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            }
-
-            const topFreq = Object.keys(freqMap).sort((a,b) => freqMap[b] - freqMap[a])[0] || '-';
-            const topLine = Object.keys(lineMap).sort((a,b) => lineMap[b] - lineMap[a])[0] || '-';
-
-            document.getElementById('statTodayCount').innerText = lineLogs.length;
-            document.getElementById('statLiveFreqMP').innerText = topFreq;
-            document.getElementById('statLiveFreqVal').innerText = topFreq !== '-' ? `${freqMap[topFreq]} Kali` : '-';
-            document.getElementById('statLongestMP').innerText = longestMP;
-            document.getElementById('statLongestVal').innerText = longestSec > 0 ? `${Math.floor(longestSec/60)} mnt ${longestSec%60} dtk` : '-';
-            document.getElementById('statLiveLine').innerText = topLine !== '-' ? `Line ${topLine}` : '-';
-            document.getElementById('statLiveLineVal').innerText = topLine !== '-' ? `${lineMap[topLine]} Transaksi` : '-';
-        }
-
-        function openCancelModal(id) {
-            document.getElementById('cancelLogId').value = id;
+        // ================= MODALS & OTHERS =================
+        window.openCancelModal = function(docId) {
+            document.getElementById('cancelDocId').value = docId;
             document.getElementById('cancelModal').classList.remove('hidden');
         }
-
-        function closeCancelModal() {
-            document.getElementById('cancelModal').classList.add('hidden');
-        }
-
-        function processCancel() {
-            const id = parseInt(document.getElementById('cancelLogId').value);
-            historyLogsLive = historyLogsLive.filter(log => log.id !== id);
-            saveDataLive();
-            renderLiveHistoryAndStats();
+        window.closeCancelModal = function() { document.getElementById('cancelModal').classList.add('hidden'); }
+        window.confirmCancelHistory = function() {
+            const docId = document.getElementById('cancelDocId').value;
+            if(docId && window.fbDeleteHistory) window.fbDeleteHistory(docId);
             closeCancelModal();
         }
 
-        // --- 4. MASTER DATA (HISTORY & FILTER) ---
-        function setDefaultFilterDates() {
-            const t = new Date();
-            const end = t.toISOString().split('T')[0];
-            t.setDate(t.getDate() - 7);
-            const start = t.toISOString().split('T')[0];
-            document.getElementById('filterEnd').value = end;
-            document.getElementById('filterStart').value = start;
+        window.openDeleteMpModal = function(docId, name) {
+            document.getElementById('delMpDocId').value = docId;
+            document.getElementById('delMpName').innerText = name;
+            document.getElementById('deleteMpModal').classList.remove('hidden');
+        }
+        window.closeDeleteMpModal = function() { document.getElementById('deleteMpModal').classList.add('hidden'); }
+        window.confirmDeleteMp = function() {
+            const docId = document.getElementById('delMpDocId').value;
+            if(docId && window.fbDeleteUser) window.fbDeleteUser(docId);
+            closeDeleteMpModal();
         }
 
-        function getFilteredMasterLogs() {
+        window.openAddLineModal = function() {
+            document.getElementById('newLineInput').value = '';
+            document.getElementById('addLineModal').classList.remove('hidden');
+        }
+        window.closeAddLineModal = function() { document.getElementById('addLineModal').classList.add('hidden'); }
+        window.processAddLine = function() {
+            let val = document.getElementById('newLineInput').value.trim();
+            if(val && window.fbAddLine) {
+                window.fbAddLine(val.replace(/\s+/g, ''), val);
+                closeAddLineModal();
+            }
+        }
+
+        window.saveNewUser = function() {
+            const id = document.getElementById('newMpId').value.trim().toUpperCase();
+            const name = document.getElementById('newMpName').value.trim();
+            const line = document.getElementById('newMpLine').value.trim().toUpperCase();
+            if(id && name && window.fbAddUser) {
+                window.fbAddUser({ id, name, line: line || 'N/A' });
+                document.getElementById('newMpId').value = '';
+                document.getElementById('newMpName').value = '';
+                document.getElementById('newMpLine').value = '';
+            }
+        }
+
+        window.setQuickFilter = function(type) {
+            const end = new Date();
+            const start = new Date();
+            if(type === 'week') start.setDate(start.getDate() - 7);
+            if(type === 'month') start.setMonth(start.getMonth() - 1);
+            
+            document.getElementById('filterEnd').value = end.toISOString().split('T')[0];
+            document.getElementById('filterStart').value = start.toISOString().split('T')[0];
+            if(!document.getElementById('view-resume').classList.contains('hidden')) applyMasterFilter();
+        }
+
+        window.applyMasterFilter = function() { renderResume(); }
+
+        window.exportMasterExcel = function() {
             const startStr = document.getElementById('filterStart').value;
             const endStr = document.getElementById('filterEnd').value;
-            
-            if(!startStr || !endStr) return [];
-            
+            if(!startStr || !endStr) return;
+
             const dStart = new Date(startStr); dStart.setHours(0,0,0,0);
             const dEnd = new Date(endStr); dEnd.setHours(23,59,59,999);
 
-            let allLogs = [];
-            
-            masterHistory.forEach(bucket => {
-                const bTime = new Date(bucket.timestamp);
-                if(bTime >= dStart && bTime <= dEnd) {
-                    bucket.logs.forEach(l => {
-                        if (l.facilityLine === currentRole) {
-                            l.shiftContext = bucket.shiftId;
-                            allLogs.push(l);
-                        }
-                    });
-                }
+            const logs = (window.cloudHistory || []).filter(h => {
+                const hTime = new Date(h.timestamp);
+                return h.facilityLine === window.currentLineId && hTime >= dStart && hTime <= dEnd;
             });
 
-            historyLogsLive.forEach(l => {
-                const lTime = new Date(l.endTime);
-                if (lTime >= dStart && lTime <= dEnd && l.facilityLine === currentRole) {
-                    l.shiftContext = "LIVE_SHIFT";
-                    allLogs.push(l);
-                }
-            });
+            if(logs.length === 0) return;
+            let csv = "Tanggal,ID MP,Nama Lengkap,Asal Line,Fasilitas,Waktu Pinjam,Waktu Kembali,Total Detik,Durasi Teks\n";
 
-            return allLogs;
-        }
-
-        function applyMasterFilter() {
-            const logs = getFilteredMasterLogs();
-            
-            let mpFreq = {}, mpDur = {};
-            
-            logs.forEach(l => {
-                const k = l.mpName;
-                mpFreq[k] = (mpFreq[k] || 0) + 1;
-                mpDur[k] = (mpDur[k] || 0) + (l.durationSec || 0);
-            });
-
-            const topFreqMP = Object.keys(mpFreq).length ? Object.keys(mpFreq).reduce((a, b) => mpFreq[a] > mpFreq[b] ? a : b) : '-';
-            const topDurMP = Object.keys(mpDur).length ? Object.keys(mpDur).reduce((a, b) => mpDur[a] > mpDur[b] ? a : b) : '-';
-
-            document.getElementById('masterTotal').innerText = logs.length;
-            document.getElementById('masterFreqMP').innerText = topFreqMP;
-            document.getElementById('masterFreqVal').innerText = topFreqMP !== '-' ? `${mpFreq[topFreqMP]} Kali` : '-';
-            document.getElementById('masterLongestMP').innerText = topDurMP;
-            document.getElementById('masterLongestVal').innerText = topDurMP !== '-' ? `${Math.floor(mpDur[topDurMP]/60)} Menit` : '-';
-
-            const tbody = document.getElementById('masterTableBody');
-            const empty = document.getElementById('masterEmptyState');
-            tbody.innerHTML = '';
-
-            if (logs.length === 0) {
-                empty.classList.remove('hidden');
-            } else {
-                empty.classList.add('hidden');
-                
-                logs.sort((a, b) => new Date(b.endTime) - new Date(a.endTime)).forEach(log => {
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-slate-50 transition-colors";
-                    tr.innerHTML = `
-                        <td class="px-5 py-3 border-b border-slate-100">
-                            <div class="text-xs font-bold text-slate-700">${new Date(log.endTime).toLocaleDateString('id-ID')}</div>
-                            <div class="text-[9px] font-extrabold text-indigo-500 bg-indigo-50 inline-block px-1.5 py-0.5 rounded uppercase mt-0.5 border border-indigo-100">${log.shiftContext}</div>
-                        </td>
-                        <td class="px-5 py-3 border-b border-slate-100">
-                            <div class="text-xs font-bold text-slate-800">${log.mpName}</div>
-                            <div class="text-[10px] font-semibold text-slate-400">${log.mpId} • Line ${log.mpLine}</div>
-                        </td>
-                        <td class="px-5 py-3 border-b border-slate-100 text-[11px] font-medium text-slate-500">
-                            ${new Date(log.startTime).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})} - 
-                            ${new Date(log.endTime).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}
-                        </td>
-                        <td class="px-5 py-3 border-b border-slate-100 text-right">
-                            <span class="text-xs font-bold text-emerald-600">${log.durationStr}</span>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            }
-        }
-
-        // --- 5. MODAL TAMBAH MASTER MP ---
-        function openAddMpModal() {
-            document.getElementById('addMpModal').classList.remove('hidden');
-            document.getElementById('newMpId').value = '';
-            document.getElementById('newMpName').value = '';
-            document.getElementById('mpSaveStatus').classList.add('hidden');
-        }
-
-        function closeAddMpModal() {
-            document.getElementById('addMpModal').classList.add('hidden');
-        }
-
-        function saveNewManpower() {
-            const id = document.getElementById('newMpId').value.trim().toUpperCase();
-            const name = document.getElementById('newMpName').value.trim();
-            const line = document.getElementById('newMpLine').value;
-            const status = document.getElementById('mpSaveStatus');
-            
-            if(!id || !name) {
-                status.innerText = "Isi NIK dan Nama!";
-                status.className = "text-xs font-bold text-center mt-2 text-red-500 bg-red-50 py-2 rounded";
-                status.classList.remove('hidden');
-                return;
-            }
-
-            const newObj = { id, name, line };
-            
-            const customMPs = JSON.parse(localStorage.getItem('customManpowerBento')) || [];
-            customMPs.push(newObj);
-            localStorage.setItem('customManpowerBento', JSON.stringify(customMPs));
-            window.refreshGlobalMPList();
-            
-            if(window.saveCustomMPFirebase) window.saveCustomMPFirebase(newObj);
-
-            status.innerText = "Berhasil Disimpan!";
-            status.className = "text-xs font-bold text-center mt-2 text-emerald-600 bg-emerald-50 py-2 rounded";
-            status.classList.remove('hidden');
-            
-            setTimeout(() => {
-                closeAddMpModal();
-            }, 1200);
-        }
-
-        // --- 6. EXPORT EXCEL ---
-        function exportMasterExcel() {
-            const logs = getFilteredMasterLogs();
-            if (logs.length === 0) return;
-            
-            let csv = "Shift Context,Tanggal,ID MP,Nama Lengkap,Asal Line,Fasilitas,Masuk,Keluar,Durasi (Detik),Durasi (Teks)\n";
-
-            logs.sort((a, b) => new Date(b.endTime) - new Date(a.endTime)).forEach(l => {
-                const date = new Date(l.endTime).toLocaleDateString('id-ID');
-                const start = new Date(l.startTime).toLocaleString('id-ID');
-                const end = new Date(l.endTime).toLocaleString('id-ID');
-                csv += `"${l.shiftContext}","${date}","${l.mpId}","${l.mpName}","${l.mpLine}","${l.keyName}","${start}","${end}",${l.durationSec},"${l.durationStr}"\n`;
+            logs.sort((a,b) => new Date(b.endTime) - new Date(a.endTime)).forEach(l => {
+                const d = new Date(l.endTime).toLocaleDateString('id-ID');
+                const s = new Date(l.startTime).toLocaleString('id-ID');
+                const e = new Date(l.endTime).toLocaleString('id-ID');
+                csv += `"${d}","${l.mpId}","${l.mpName}","${l.mpLine}","${l.keyName}","${s}","${e}",${l.durationSec},"${l.durationStr}"\n`;
             });
 
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.setAttribute("href", url);
-            link.setAttribute("download", `Laporan_Toilet_Area_${currentRole}_${document.getElementById('filterStart').value}_sd_${document.getElementById('filterEnd').value}.csv`);
+            link.setAttribute("download", `Laporan_Toilet_Area_${window.currentLineId}_${startStr}_sd_${endStr}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
 
-        // --- GLOBAL EVENT LISTENERS ---
+        window.downloadTemplate = function() {
+            const ws = XLSX.utils.aoa_to_sheet([["ID", "NAMA", "LINE"], ["MP-001", "Budi Santoso", "PP"]]);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "DatabaseMP");
+            XLSX.writeFile(wb, "Template_Database_MP.xlsx");
+        }
+
+        window.handleExcelUpload = function(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const data = evt.target.result;
+                const workbook = XLSX.read(data, {type: 'binary'});
+                const sheetName = workbook.SheetNames[0];
+                const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                
+                const usersToUpload = [];
+                json.forEach(row => {
+                    const id = row['ID'] || row['id'];
+                    const name = row['NAMA'] || row['Nama'] || row['nama'];
+                    const line = row['LINE'] || row['Line'] || row['line'] || 'N/A';
+                    if(id && name) usersToUpload.push({ id: id.toString().toUpperCase(), name: name.toString(), line: line.toString().toUpperCase() });
+                });
+
+                if(usersToUpload.length > 0 && window.fbBatchAddUsers) {
+                    window.fbBatchAddUsers(usersToUpload);
+                }
+                document.getElementById('excelUpload').value = '';
+            };
+            reader.readAsBinaryString(file);
+        }
+
+        // ================= GLOBAL EVENT LISTENERS & TIMERS =================
+        setInterval(() => {
+            if(window.currentLineId && !document.getElementById('view-beranda').classList.contains('hidden')) {
+                const lineKeys = (window.cloudKeys || []).filter(k => k.lineId === window.currentLineId);
+                
+                lineKeys.forEach(k => {
+                    if (k.isOccupied) {
+                        const start = new Date(k.startTime).getTime();
+                        const now = Date.now();
+                        const diffSec = Math.floor((now - start) / 1000);
+                        const m = Math.floor(diffSec / 60);
+                        const s = diffSec % 60;
+                        const durStr = m > 0 ? `${m}m ${s}s` : `${s}s`;
+                        
+                        const btnReturn = document.getElementById(`btnReturn_${k.docId}`);
+                        const els = document.querySelectorAll(`[data-start="${k.startTime}"]`);
+                        
+                        els.forEach(el => {
+                            el.innerHTML = `<i class="fa-solid fa-stopwatch ${diffSec >= 900 ? 'fa-beat' : 'animate-pulse'}"></i> ${durStr}`;
+                            if (diffSec >= 900 && el.classList.contains('bg-amber-50')) {
+                                el.classList.replace('bg-amber-50', 'bg-red-50');
+                                el.classList.replace('text-amber-600', 'text-red-600');
+                            }
+                        });
+
+                        // 10 Detik Delay Logic
+                        if(btnReturn) {
+                            if(diffSec < 10) {
+                                btnReturn.disabled = true;
+                                btnReturn.innerText = `Tunggu ${10 - diffSec}s`;
+                                btnReturn.classList.replace('bg-emerald-500', 'bg-slate-300');
+                                btnReturn.classList.replace('hover:bg-emerald-600', 'hover:bg-slate-300');
+                            } else {
+                                btnReturn.disabled = false;
+                                btnReturn.innerText = `Selesai`;
+                                btnReturn.classList.replace('bg-slate-300', 'bg-emerald-500');
+                                btnReturn.classList.replace('hover:bg-slate-300', 'hover:bg-emerald-600');
+                            }
+                        }
+                    }
+                });
+            }
+        }, 1000);
+
         document.addEventListener('click', e => {
             const list = document.getElementById('autocompleteList');
             const input = document.getElementById('bigInput');
             if(e.target !== input && e.target !== list && list) list.classList.add('hidden');
         });
 
-        setInterval(() => {
-            // Auto Reset Check
-            checkShiftBoundary();
-
-            // Update live duration di Dashboard Harian
-            document.querySelectorAll('.live-duration').forEach(el => {
-                const start = el.getAttribute('data-start');
-                if (start) {
-                    const diff = calculateDurationObj(start, new Date().toISOString());
-                    el.innerHTML = `<i class="fa-solid fa-stopwatch ${diff.seconds >= 900 ? 'fa-beat' : 'animate-pulse'}"></i> ${diff.string}`;
-                    
-                    if (diff.seconds >= 900 && el.classList.contains('bg-amber-50')) {
-                        el.classList.replace('bg-amber-50', 'bg-red-50');
-                        el.classList.replace('text-amber-600', 'text-red-600');
-                    }
-                }
-            });
-
-            // Update status tombol selesai (Delay 10 detik)
-            document.querySelectorAll('.btn-selesai').forEach(btn => {
-                const start = btn.getAttribute('data-start');
-                if(start) {
-                    const diffMs = Date.now() - new Date(start).getTime();
-                    if(diffMs < 10000) {
-                        const secLeft = Math.ceil((10000 - diffMs) / 1000);
-                        btn.disabled = true;
-                        btn.className = "btn-selesai px-5 py-2 bg-slate-200 text-slate-500 text-sm font-bold rounded-xl shadow-inner transition-all cursor-not-allowed border border-slate-300";
-                        btn.innerText = `Tunggu ${secLeft}s`;
-                    } else {
-                        btn.disabled = false;
-                        btn.className = "btn-selesai px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl shadow-sm transition-all hover:-translate-y-0.5 border border-emerald-600 cursor-pointer";
-                        btn.innerText = "Selesai";
-                    }
-                }
-            });
-        }, 1000);
-
-        // Run
         initApp();
     </script>
 </body>
