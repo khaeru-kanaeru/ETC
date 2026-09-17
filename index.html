@@ -55,7 +55,7 @@
             <!-- Pipa Besi (Rack) -->
             <div class="w-full h-4 bg-gradient-to-b from-slate-300 to-slate-400 rounded-full shadow-[0_5px_10px_rgba(0,0,0,0.1)] relative z-20"></div>
             
-            <!-- Area Render ID Card (bergeser ke atas sedikit agar nyambung ke pipa) -->
+            <!-- Area Render ID Card -->
             <div id="linesGrid" class="flex flex-wrap justify-center gap-8 relative z-10 -mt-1 px-4">
                 <!-- Skeleton / Real Cards dirender JS disini -->
             </div>
@@ -81,6 +81,9 @@
                 <div class="flex bg-slate-100 p-1 rounded-xl mx-2 overflow-x-auto custom-scrollbar">
                     <button onclick="switchTab('beranda')" id="tabBtn-beranda" class="tab-btn active px-4 py-2 rounded-lg text-sm font-bold text-slate-500 transition-colors flex items-center gap-2 shrink-0">
                         <i class="fa-solid fa-bolt"></i> <span class="hidden sm:inline">Beranda</span>
+                    </button>
+                    <button onclick="switchTab('peringkat')" id="tabBtn-peringkat" class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-slate-500 transition-colors flex items-center gap-2 shrink-0">
+                        <i class="fa-solid fa-medal"></i> <span class="hidden sm:inline">Peringkat</span>
                     </button>
                     <button onclick="switchTab('resume')" id="tabBtn-resume" class="tab-btn px-4 py-2 rounded-lg text-sm font-bold text-slate-500 transition-colors flex items-center gap-2 shrink-0">
                         <i class="fa-solid fa-chart-simple"></i> <span class="hidden sm:inline">Resume</span>
@@ -196,48 +199,102 @@
                 </section>
             </div>
 
-            <!-- ================= TAB 2: RESUME ================= -->
-            <div id="view-resume" class="hidden flex-col lg:grid lg:grid-cols-12 lg:grid-rows-[auto_1fr] gap-4 lg:gap-6 h-full fade-in overflow-y-auto lg:overflow-hidden">
+            <!-- ================= TAB 2: PERINGKAT (LEADERBOARD) ================= -->
+            <div id="view-peringkat" class="hidden flex-col lg:grid lg:grid-cols-12 lg:grid-rows-[auto_1fr] gap-4 lg:gap-6 h-full fade-in overflow-y-auto lg:overflow-hidden">
                 
-                <section class="lg:col-span-12 shrink-0 grid grid-cols-1 md:grid-cols-5 gap-4">
-                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
-                        <div class="flex justify-between items-center mb-2">
-                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rentang Waktu</p>
-                            <div class="flex gap-1">
-                                <button onclick="setQuickFilter('week')" class="text-[9px] bg-slate-100 hover:bg-slate-200 font-bold px-1.5 py-0.5 rounded text-slate-600">1 Mgg</button>
-                                <button onclick="setQuickFilter('month')" class="text-[9px] bg-slate-100 hover:bg-slate-200 font-bold px-1.5 py-0.5 rounded text-slate-600">1 Bln</button>
+                <section class="lg:col-span-12 shrink-0 grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <div class="md:col-span-12 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                        <div class="flex justify-between items-center mb-3">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rentang Filter Peringkat & Resume</p>
+                            <div class="flex gap-2">
+                                <button onclick="setQuickFilter('week')" class="text-[10px] bg-indigo-50 hover:bg-indigo-100 font-bold px-3 py-1.5 rounded-lg text-indigo-600 transition-colors shadow-sm">1 Minggu</button>
+                                <button onclick="setQuickFilter('month')" class="text-[10px] bg-indigo-50 hover:bg-indigo-100 font-bold px-3 py-1.5 rounded-lg text-indigo-600 transition-colors shadow-sm">1 Bulan</button>
                             </div>
                         </div>
-                        <div class="flex gap-1 mb-2">
-                            <input type="date" id="filterStart" class="w-full text-[10px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 outline-none">
-                            <input type="date" id="filterEnd" class="w-full text-[10px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 outline-none">
+                        <div class="flex flex-col sm:flex-row gap-3 mb-4">
+                            <div class="w-full relative">
+                                <span class="absolute text-[9px] font-bold text-slate-400 -top-2 left-3 bg-white px-1">Dari Tgl</span>
+                                <input type="date" id="lbFilterStart" class="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500 focus:bg-white transition-all">
+                            </div>
+                            <div class="w-full relative">
+                                <span class="absolute text-[9px] font-bold text-slate-400 -top-2 left-3 bg-white px-1">Sampai Tgl</span>
+                                <input type="date" id="lbFilterEnd" class="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500 focus:bg-white transition-all">
+                            </div>
                         </div>
-                        <button onclick="applyMasterFilter()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-1.5 rounded-lg transition shadow-sm">
-                            <i class="fa-solid fa-filter"></i> Terapkan
+                        <button onclick="syncFiltersAndApply()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 rounded-xl transition shadow flex justify-center items-center gap-2">
+                            <i class="fa-solid fa-filter"></i> Terapkan Analitik
                         </button>
-                    </div>
-                    
-                    <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm flex flex-col justify-center">
-                        <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Total Transaksi</p>
-                        <p class="text-3xl font-extrabold text-indigo-700" id="masterTotal">0</p>
-                    </div>
-                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
-                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Paling Sering</p>
-                        <p class="text-lg font-bold text-slate-800 truncate mt-1" id="masterFreqMP">-</p>
-                        <p class="text-[10px] font-bold text-slate-500 mt-1" id="masterFreqVal">-</p>
-                    </div>
-                    <div class="bg-amber-50 p-4 rounded-2xl border border-amber-100 shadow-sm flex flex-col justify-center">
-                        <p class="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-1">Durasi Terlama</p>
-                        <p class="text-lg font-bold text-amber-800 truncate mt-1" id="masterLongestMP">-</p>
-                        <p class="text-[10px] font-bold text-amber-600 mt-1" id="masterLongestVal">-</p>
-                    </div>
-                    <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm flex flex-col justify-center">
-                        <p class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1">Asal Line Aktif</p>
-                        <p class="text-xl font-bold text-emerald-700 truncate mt-1" id="masterActiveLine">-</p>
                     </div>
                 </section>
 
-                <section class="lg:col-span-12 bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+                <section class="lg:col-span-12 flex flex-col md:flex-row gap-4 h-full overflow-hidden">
+                    <!-- Paling Sering -->
+                    <div class="flex-1 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+                        <h3 class="text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 shrink-0">
+                            <i class="fa-solid fa-fire text-orange-500 text-lg"></i> Paling Sering (Semua)
+                        </h3>
+                        <div class="flex-grow overflow-y-auto custom-scrollbar pr-2">
+                            <ul id="lb-freq-full" class="flex flex-col gap-2"></ul>
+                        </div>
+                    </div>
+                    <!-- Paling Lama -->
+                    <div class="flex-1 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+                        <h3 class="text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 shrink-0">
+                            <i class="fa-solid fa-hourglass-half text-amber-500 text-lg"></i> Akumulasi Terlama (Semua)
+                        </h3>
+                        <div class="flex-grow overflow-y-auto custom-scrollbar pr-2">
+                            <ul id="lb-dur-full" class="flex flex-col gap-2"></ul>
+                        </div>
+                    </div>
+                    <!-- Line Teraktif -->
+                    <div class="flex-1 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+                        <h3 class="text-[11px] font-extrabold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 shrink-0">
+                            <i class="fa-solid fa-network-wired text-emerald-500 text-lg"></i> Asal Line Teraktif
+                        </h3>
+                        <div class="flex-grow overflow-y-auto custom-scrollbar pr-2">
+                            <ul id="lb-line-full" class="flex flex-col gap-2"></ul>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- ================= TAB 3: RESUME ================= -->
+            <div id="view-resume" class="hidden flex-col lg:grid lg:grid-cols-12 lg:grid-rows-[auto_1fr] gap-4 lg:gap-6 h-full fade-in overflow-y-auto lg:overflow-hidden">
+                
+                <section class="lg:col-span-12 shrink-0 grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <!-- Filter and Total -->
+                    <div class="md:col-span-8 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                        <div class="flex justify-between items-center mb-3">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rentang Filter Peringkat & Resume</p>
+                            <div class="flex gap-2">
+                                <button onclick="setQuickFilter('week')" class="text-[10px] bg-indigo-50 hover:bg-indigo-100 font-bold px-3 py-1.5 rounded-lg text-indigo-600 transition-colors shadow-sm">1 Minggu</button>
+                                <button onclick="setQuickFilter('month')" class="text-[10px] bg-indigo-50 hover:bg-indigo-100 font-bold px-3 py-1.5 rounded-lg text-indigo-600 transition-colors shadow-sm">1 Bulan</button>
+                            </div>
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-3 mb-4">
+                            <div class="w-full relative">
+                                <span class="absolute text-[9px] font-bold text-slate-400 -top-2 left-3 bg-white px-1">Dari Tgl</span>
+                                <input type="date" id="filterStart" class="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500 focus:bg-white transition-all">
+                            </div>
+                            <div class="w-full relative">
+                                <span class="absolute text-[9px] font-bold text-slate-400 -top-2 left-3 bg-white px-1">Sampai Tgl</span>
+                                <input type="date" id="filterEnd" class="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500 focus:bg-white transition-all">
+                            </div>
+                        </div>
+                        <button onclick="syncFiltersAndApply()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 rounded-xl transition shadow flex justify-center items-center gap-2">
+                            <i class="fa-solid fa-filter"></i> Terapkan Analitik
+                        </button>
+                    </div>
+                    
+                    <div class="md:col-span-4 bg-gradient-to-br from-indigo-500 to-blue-600 p-6 rounded-3xl border border-indigo-400 shadow-lg flex flex-col justify-center relative overflow-hidden text-white">
+                        <div class="absolute -right-4 -top-4 w-28 h-28 bg-white opacity-10 rounded-full blur-2xl"></div>
+                        <i class="fa-solid fa-chart-pie absolute right-6 bottom-6 text-5xl opacity-20 transform -rotate-12"></i>
+                        <p class="text-[11px] font-bold text-indigo-100 uppercase tracking-widest mb-1 z-10">Total Transaksi</p>
+                        <p class="text-5xl font-extrabold z-10" id="masterTotal">0</p>
+                    </div>
+                </section>
+
+                <section class="lg:col-span-12 bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col overflow-hidden min-h-[300px]">
                     <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
                         <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
                             <i class="fa-solid fa-database text-blue-500"></i> Database Riwayat
@@ -266,7 +323,7 @@
                 </section>
             </div>
 
-            <!-- ================= TAB 3: USERS ================= -->
+            <!-- ================= TAB 4: USERS ================= -->
             <div id="view-users" class="hidden flex-col lg:grid lg:grid-cols-12 lg:grid-rows-[auto_1fr] gap-4 lg:gap-6 h-full fade-in overflow-y-auto lg:overflow-hidden">
                 
                 <section class="lg:col-span-4 flex flex-col gap-4 shrink-0">
@@ -425,7 +482,7 @@
             messagingSenderId: "795178973088",
             appId: "1:795178973088:web:ddb143e3a3a4635f2696c5"
         };
-        const appId = 'toilet-card-app';
+        const appId = 'toilet-card-app'; // Menggunakan ID asalnya agar data terbaca
 
         let db, auth, currentUser;
         
@@ -491,6 +548,7 @@
                 window.cloudHistory = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
                 if(window.currentLineId) {
                     if(typeof window.renderBeranda === 'function') window.renderBeranda();
+                    if(typeof window.renderLeaderboard === 'function') window.renderLeaderboard();
                     if(typeof window.renderResume === 'function') window.renderResume();
                 }
             });
@@ -524,7 +582,6 @@
             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appKeys', docId));
         };
 
-        // Injecting hostLine for database isolation
         window.fbAddUser = async function(userObj) {
             if(!currentUser) return;
             const docId = `usr_${userObj.hostLine}_${userObj.id}`;
@@ -536,12 +593,10 @@
             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appUsers', docId));
         };
 
-        // Mass delete for current line users
         window.fbDeleteAllUsers = async function(hostLine) {
             if(!currentUser) return;
             const usersToDelete = window.cloudUsers.filter(u => u.hostLine === hostLine || (!u.hostLine && u.line === hostLine));
             
-            // Delete running in parallel
             const deletePromises = usersToDelete.map(u => 
                 deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appUsers', u.docId))
             );
@@ -606,7 +661,7 @@
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`tabBtn-${tabId}`).classList.add('active');
             
-            ['beranda', 'resume', 'users'].forEach(v => {
+            ['beranda', 'peringkat', 'resume', 'users'].forEach(v => {
                 const el = document.getElementById(`view-${v}`);
                 el.classList.add('hidden');
                 el.classList.remove('flex', 'lg:grid');
@@ -617,6 +672,7 @@
             target.classList.add('flex', 'lg:grid');
 
             if(tabId === 'beranda') window.renderBeranda();
+            if(tabId === 'peringkat') window.renderLeaderboard();
             if(tabId === 'resume') window.renderResume();
             if(tabId === 'users') window.renderUsers();
         }
@@ -805,6 +861,93 @@
             document.getElementById('statActiveLine').innerText = topLine !== '-' ? `Line ${topLine}` : '-';
         }
 
+        // ================= RENDER PERINGKAT =================
+        window.renderLeaderboard = function() {
+            if(!window.currentLineId) return;
+            const startStr = document.getElementById('lbFilterStart').value;
+            const endStr = document.getElementById('lbFilterEnd').value;
+            if(!startStr || !endStr) return;
+
+            const dStart = new Date(startStr); dStart.setHours(0,0,0,0);
+            const dEnd = new Date(endStr); dEnd.setHours(23,59,59,999);
+
+            const logs = (window.cloudHistory || []).filter(h => {
+                const hTime = new Date(h.timestamp);
+                return h.facilityLine === window.currentLineId && hTime >= dStart && hTime <= dEnd;
+            });
+
+            let mpFreq = {}, mpDur = {}, lineMap = {};
+
+            logs.forEach(log => {
+                const mpKey = log.mpName + '|' + log.mpId; 
+                mpFreq[mpKey] = (mpFreq[mpKey] || 0) + 1;
+                mpDur[mpKey] = (mpDur[mpKey] || 0) + (log.durationSec || 0);
+                
+                const lLine = log.mpLine;
+                if(lLine && lLine !== 'Unknown' && lLine !== 'N/A') {
+                    lineMap[lLine] = (lineMap[lLine] || 0) + 1;
+                }
+            });
+
+            const sortObjFull = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1]);
+            
+            document.getElementById('lb-freq-full').innerHTML = createLeaderboardHTML(sortObjFull(mpFreq), 'freq');
+            document.getElementById('lb-dur-full').innerHTML = createLeaderboardHTML(sortObjFull(mpDur), 'dur');
+            document.getElementById('lb-line-full').innerHTML = createLeaderboardHTML(sortObjFull(lineMap), 'line');
+        }
+
+        function createLeaderboardHTML(data, type) {
+            if(data.length === 0) return '<div class="text-xs font-medium text-slate-400 text-center py-6 italic border-2 border-dashed border-slate-100 rounded-xl mt-2">Data kosong pada rentang ini</div>';
+            
+            let html = '';
+            data.forEach((item, index) => {
+                const [nameRaw, value] = item;
+                let title = nameRaw;
+                let subtitle = '';
+                if(nameRaw.includes('|')) {
+                    const split = nameRaw.split('|');
+                    title = split[0];
+                    subtitle = split[1];
+                }
+                
+                let valStr = value;
+                if(type === 'freq') valStr = `${value}x`;
+                if(type === 'dur') {
+                    const m = Math.floor(value / 60);
+                    const s = value % 60;
+                    valStr = m > 0 ? `${m}m ${s}s` : `${s}s`;
+                }
+                if(type === 'line') valStr = `${value}x Pinjam`;
+
+                let rankUI = '';
+                let bgClass = 'bg-white border-slate-100';
+
+                if(index === 0) { rankUI = '<i class="fa-solid fa-medal text-yellow-400 text-lg"></i>'; bgClass = 'bg-yellow-50 border-yellow-100'; }
+                else if(index === 1) { rankUI = '<i class="fa-solid fa-medal text-slate-400 text-lg"></i>'; bgClass = 'bg-slate-50 border-slate-200'; }
+                else if(index === 2) { rankUI = '<i class="fa-solid fa-medal text-amber-700 text-lg"></i>'; bgClass = 'bg-amber-50 border-amber-100'; }
+                else { rankUI = `<span class="text-[11px] font-extrabold text-slate-400 w-5 text-center">#${index+1}</span>`; }
+
+                html += `
+                <li class="flex items-center justify-between p-2.5 rounded-xl border ${bgClass}">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <div class="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0 border border-slate-100">
+                            ${rankUI}
+                        </div>
+                        <div class="truncate">
+                            <p class="text-xs font-bold text-slate-800 truncate leading-tight">${title}</p>
+                            ${subtitle ? `<p class="text-[9px] text-slate-500 font-medium truncate">${subtitle}</p>` : ''}
+                        </div>
+                    </div>
+                    <div class="text-[10px] font-extrabold text-indigo-700 bg-white shadow-sm px-2 py-1 rounded-lg shrink-0 border border-slate-100">
+                        ${valStr}
+                    </div>
+                </li>
+                `;
+            });
+            return html;
+        }
+
+
         // ================= RENDER RESUME =================
         window.renderResume = function() {
             if(!window.currentLineId) return;
@@ -823,15 +966,7 @@
             const tbody = document.getElementById('masterTableBody');
             tbody.innerHTML = '';
 
-            let longestSec = 0, longestMP = '-', mpFreq = {}, lineMap = {};
-
             logs.sort((a,b) => new Date(b.endTime) - new Date(a.endTime)).forEach(log => {
-                if(log.durationSec > longestSec) { longestSec = log.durationSec; longestMP = log.mpName; }
-                const mpKey = log.mpName;
-                mpFreq[mpKey] = (mpFreq[mpKey] || 0) + 1;
-                const lLine = log.mpLine;
-                if(lLine && lLine !== 'Unknown') lineMap[lLine] = (lineMap[lLine] || 0) + 1;
-
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition-colors";
                 tr.innerHTML = `
@@ -854,17 +989,9 @@
                 tbody.appendChild(tr);
             });
 
-            // Update Stats Resume
-            const topFreqMP = Object.keys(mpFreq).length ? Object.keys(mpFreq).reduce((a, b) => mpFreq[a] > mpFreq[b] ? a : b) : '-';
-            const topLine = Object.keys(lineMap).length ? Object.keys(lineMap).reduce((a, b) => lineMap[a] > lineMap[b] ? a : b) : '-';
-            
             document.getElementById('masterTotal').innerText = logs.length;
-            document.getElementById('masterFreqMP').innerText = topFreqMP;
-            document.getElementById('masterFreqVal').innerText = topFreqMP !== '-' ? `${mpFreq[topFreqMP]} Kali` : '';
-            document.getElementById('masterLongestMP').innerText = longestMP;
-            document.getElementById('masterLongestVal').innerText = longestSec > 0 ? `${Math.floor(longestSec/60)}m ${longestSec%60}s` : '';
-            document.getElementById('masterActiveLine').innerText = topLine !== '-' ? `Line ${topLine}` : '-';
         }
+
 
         // ================= RENDER USERS =================
         window.renderUsers = function() {
@@ -1058,7 +1185,6 @@
             const name = document.getElementById('newMpName').value.trim();
             const line = document.getElementById('newMpLine').value.trim().toUpperCase();
             if(id && name && window.fbAddUser) {
-                // ISOLASI DATABASE: Sisipkan hostLine
                 window.fbAddUser({ id, name, line: line || 'N/A', hostLine: window.currentLineId });
                 document.getElementById('newMpId').value = '';
                 document.getElementById('newMpName').value = '';
@@ -1066,18 +1192,36 @@
             }
         }
 
+        // Filter Tersinkronisasi Antara Resume dan Peringkat
         window.setQuickFilter = function(type) {
             const end = new Date();
             const start = new Date();
             if(type === 'week') start.setDate(start.getDate() - 7);
             if(type === 'month') start.setMonth(start.getMonth() - 1);
             
-            document.getElementById('filterEnd').value = end.toISOString().split('T')[0];
-            document.getElementById('filterStart').value = start.toISOString().split('T')[0];
-            if(!document.getElementById('view-resume').classList.contains('hidden')) applyMasterFilter();
+            const startStr = start.toISOString().split('T')[0];
+            const endStr = end.toISOString().split('T')[0];
+
+            document.getElementById('filterStart').value = startStr;
+            document.getElementById('filterEnd').value = endStr;
+            document.getElementById('lbFilterStart').value = startStr;
+            document.getElementById('lbFilterEnd').value = endStr;
+            
+            syncFiltersAndApply();
         }
 
-        window.applyMasterFilter = function() { renderResume(); }
+        window.syncFiltersAndApply = function() {
+            // Cek tab mana yang sedang aktif, lalu set valuenya menyilang agar sinkron
+            if(!document.getElementById('view-peringkat').classList.contains('hidden')) {
+                document.getElementById('filterStart').value = document.getElementById('lbFilterStart').value;
+                document.getElementById('filterEnd').value = document.getElementById('lbFilterEnd').value;
+                renderLeaderboard();
+            } else if (!document.getElementById('view-resume').classList.contains('hidden')) {
+                document.getElementById('lbFilterStart').value = document.getElementById('filterStart').value;
+                document.getElementById('lbFilterEnd').value = document.getElementById('filterEnd').value;
+                renderResume();
+            }
+        }
 
         window.exportMasterExcel = function() {
             const startStr = document.getElementById('filterStart').value;
@@ -1139,7 +1283,7 @@
                             id: id.toString().toUpperCase(), 
                             name: name.toString(), 
                             line: line.toString().toUpperCase(),
-                            hostLine: window.currentLineId // ISOLASI DATABASE
+                            hostLine: window.currentLineId 
                         });
                     }
                 });
